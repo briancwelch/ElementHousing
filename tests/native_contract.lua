@@ -75,6 +75,29 @@ methods.CreateAnimationGroup = function(self) return Widget("AnimationGroup", ni
 methods.CreateAnimation = function(self) return Widget("Animation", nil, self) end
 methods.GetHighlightTexture = function(self) return self.SetHighlightTextureValue end
 methods.GetThumbTexture = function(self) return self.SetThumbTextureValue end
+-- Register native ElvUI template and font state, including its shared refresh registries.
+methods.SetTemplate = function(self, template)
+    self.template = template
+    local engine = ElvUI[1]
+    engine.frames[self] = true
+    self:SetBackdropColor(unpack(template == "Transparent" and engine.media.backdropfadecolor or engine.media.backdropcolor))
+    self:SetBackdropBorderColor(unpack(self.forcedBorderColors or engine.media.bordercolor))
+end
+methods.FontTemplate = function(self, fontName, fontSize, fontStyle, skip)
+    if NativeFontTemplate then return NativeFontTemplate(self, fontName, fontSize, fontStyle, skip) end
+    local engine = ElvUI[1]
+    if not skip then engine.texts[self] = { fontName = fontName, fontSize = fontSize, fontStyle = fontStyle } end
+    self:SetFont(fontName or engine.media.normFont, fontSize or engine.db.general.fontSize, fontStyle or engine.db.general.fontStyle)
+end
+methods.StyleButton = function(self)
+    self:SetHighlightTexture(ElvUI[1].media.blankTex)
+    self:GetHighlightTexture():SetVertexColor(1, 1, 1, 0.3)
+end
+-- Preserve native call ordering when installing a secure post-hook on an addon method.
+hooksecurefunc = function(object, name, callback)
+    local original = object[name]
+    object[name] = function(...) original(...); callback(...) end
+end
 methods.SetTexture = function(self, value) assert(value == nil or type(value) == "string" or type(value) == "number"); self.texture = value end
 methods.SetAtlas = function(self, value) assert(type(value) == "string"); self.atlas = value end
 methods.GetVertexColor = function() return 1, 1, 1, 1 end
@@ -97,6 +120,7 @@ methods.SetResizeBounds = function(self, ...) self.bounds = { ... } end
 methods.SetPoint = function(self, ...) self.points[#self.points + 1] = { ... } end
 methods.SetAllPoints = function(self, parent) self.allPoints = parent end
 methods.ClearAllPoints = function(self) self.points = {} end
+methods.IsObjectType = function(self, kind) return self.kind == kind end
 methods.GetParent = function(self) return self.parent end
 methods.GetName = function(self) return self.nameID end
 methods.Show = function(self) local changed = not self.shown; self.shown = true; if changed and self.scripts.OnShow then self.scripts.OnShow(self) end end
@@ -240,8 +264,25 @@ menuMethods.CreateRadio = function(self, label, selected, action) local item = s
 menuMethods.CreateCheckbox = menuMethods.CreateRadio
 menuMethods.SetScrollMode = function() end
 MenuUtil = { CreateContextMenu = function(owner, build) lastMenu = setmetatable({ items = {} }, { __index = menuMethods }); build(owner, lastMenu) end }
--- Track ElvUI's public plugin registration without depending on its complete engine.
-ElvUI = { { Options = { name = "ElvUI", args = {} }, media = { normFont = STANDARD_TEXT_FONT,
-    backdropcolor = { 0.08, 0.08, 0.08 }, bordercolor = { 0.2, 0.2, 0.2 } },
+-- Track ElvUI's public registries without depending on its complete engine or renderer.
+ElvUI = { { Options = { name = "ElvUI", args = {} }, db = { general = { fontSize = 13, fontStyle = "OUTLINE" } },
+    private = {}, texts = {}, frames = {}, statusBars = {},
+    media = { normFont = STANDARD_TEXT_FONT, normTex = "Interface\\AddOns\\ElvUI\\Media\\Textures\\NormTex",
+        blankTex = "Interface\\Buttons\\WHITE8X8", rgbvaluecolor = { 0.3, 0.8, 0.9 },
+        backdropcolor = { 0.08, 0.08, 0.08, 1 }, backdropfadecolor = { 0.08, 0.08, 0.08, 0.4 }, bordercolor = { 0.2, 0.2, 0.2, 1 } },
     Libs = { EP = { RegisterPlugin = function(_, name, fn) pluginCallback = fn; pluginName = name end } },
-    ToggleOptions = function(_, path) optionsPath = path end } }
+    ToggleOptions = function(_, path) optionsPath = path end,
+    UpdateMedia = function() end,
+    UIScale = function(self) UIParent:SetScale(self.global.general.UIScale) end,
+    global = { general = { UIScale = 1 } },
+    CanFlagSlug = function() return false end,
+    SetFontShadow = function(_, widget, _, shadow) widget.fontShadow = shadow end,
+    CoroutineUpdate = function(_, callback, registry) for widget, info in pairs(registry) do callback(widget, info) end end,
+    -- Native registries apply the current media without storing addon-specific appearance settings.
+    RegisterStatusBar = function(self, bar) self.statusBars[bar] = true end,
+    UpdateFontTemplates = function(self) for widget, info in pairs(self.texts) do widget:FontTemplate(info.fontName, info.fontSize, info.fontStyle, true) end end,
+    UpdateStatusBars = function(self) for bar in pairs(self.statusBars) do
+        if bar.kind == "StatusBar" then bar:SetStatusBarTexture(self.media.normTex) else bar:SetTexture(self.media.normTex) end
+    end end,
+    UpdateFrames = function(self) for frame in pairs(self.frames) do frame:SetTemplate(frame.template) end end,
+} }

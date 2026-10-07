@@ -1,19 +1,19 @@
 local _, EH = ...
-local fallback = {
-    housing = "INV_Misc_EngGizmos_31", collection = "INV_Misc_Book_09", book = "INV_Misc_Book_11",
-    shop = "INV_Misc_Coin_01", teleports = "INV_Misc_Map_01", achievement = "Achievement_General",
-    professions = "Trade_Engineering", dungeon = "INV_Misc_MonsterClaw_04", quest = "INV_Misc_Note_01",
-    general = "INV_Gizmo_02", colors = "INV_Misc_Gem_Sapphire_02", refresh = "Spell_Nature_Rejuvenation",
-    heart = "Spell_Holy_BlessingOfProtection", menu = "INV_Misc_QuestionMark", tags = "INV_Misc_Note_02",
-    browser = "INV_Misc_Spyglass_03", help = "INV_Misc_QuestionMark",
+local E = ElvUI[1]
+local icons = {
+    collection = true, book = true, shop = true, teleports = true, achievement = true,
+    professions = true, dungeon = true, quest = true, general = true, colors = true,
+    refresh = true, heart = true, menu = true, tags = true, browser = true, help = true,
 }
+EH.brandIcon = "Interface\\AddOns\\ElementHousing\\Media\\Icon.tga"
 
--- Resolve the installed nMediaTag glyphs without copying its artwork or requiring its engine.
+-- Prefer optional nMediaTag control glyphs; keep every fallback inside ElementHousing.
 function EH:Icon(name)
-    if C_AddOns and C_AddOns.IsAddOnLoaded("ElvUI_mMediaTag") then
+    if name ~= "housing" and not icons[name] then return self.brandIcon end
+    if C_AddOns.IsAddOnLoaded("ElvUI_mMediaTag") then
         return "Interface\\AddOns\\ElvUI_mMediaTag\\media\\options\\" .. name .. ".tga"
     end
-    return "Interface\\Icons\\" .. (fallback[name] or fallback.housing)
+    return name == "housing" and self.brandIcon or "Interface\\AddOns\\ElementHousing\\Media\\Icons\\" .. name .. ".tga"
 end
 
 -- Produce the Mage-blue to Warlock-purple label used by the launcher and ElvUI header.
@@ -32,59 +32,49 @@ function EH:IconLabel(icon, label)
     return "|T" .. self:Icon(icon) .. ":14:14:0:0|t " .. label
 end
 
--- Use the current ElvUI palette and font, with a single fixed native fallback.
-function EH:Palette()
-    local engine = ElvUI and ElvUI[1]
-    local media = engine and engine.media
-    return media and media.backdropcolor or { 0.08, 0.08, 0.10, 1 },
-        media and media.bordercolor or { 0.22, 0.24, 0.28, 1 },
-        media and media.normFont or STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
+-- Use native ElvUI templates and optional WindTools shadows on addon-owned windows.
+function EH:Skin(frame, inset, shadow)
+    frame:SetTemplate(inset and "Transparent" or "Default")
+    if not shadow or not C_AddOns.IsAddOnLoaded("ElvUI_WindTools") then return end
+    local wind = WindTools and WindTools[1]
+    local skins = wind and wind.Modules and wind.Modules.Skins
+    local settings = E.private.WT and E.private.WT.skins
+    if skins and skins.CreateShadow and settings and settings.enable and settings.shadow then
+        skins:CreateShadow(frame)
+    end
 end
 
--- Skin only ElementHousing frames using ElvUI templates where available.
-function EH:Skin(frame, inset)
-    local background, border = self:Palette()
-    if frame.SetTemplate then frame:SetTemplate(inset and "Transparent" or "Default")
-    else frame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 }) end
-    frame:SetBackdropColor(background[1], background[2], background[3], inset and 0.55 or 1)
-    frame:SetBackdropBorderColor(border[1], border[2], border[3], 1)
-end
-
--- Create a consistently sized label; preserve native item colors when supplying text.
-function EH:Label(parent, text, size)
-    local _, _, font = self:Palette()
+-- Register labels with ElvUI so its font, size, and outline settings stay authoritative.
+function EH:Label(parent, text)
     local label = parent:CreateFontString(nil, "OVERLAY")
-    label:SetFont(font, size or self.db.settings.fontSize, "OUTLINE")
+    label:FontTemplate()
     label:SetText(text or "")
     label:SetJustifyH("LEFT")
     return label
 end
 
--- Create flat text controls without invalid nil button-state texture setters.
+-- Create flat controls with native ElvUI hover styling and optional control artwork.
 function EH:Button(parent, text, width, click, icon)
     local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
     self:Skin(button)
     button:SetSize(width or 100, 26)
-    button.text = self:Label(button, text, 12)
+    button.text = self:Label(button, text)
     button.text:SetPoint("CENTER", icon and 8 or 0, 0)
     if icon then
         button.icon = button:CreateTexture(nil, "ARTWORK")
         button.icon:SetSize(16, 16); button.icon:SetPoint("LEFT", 6, 0)
         button.icon:SetTexture(self:Icon(icon))
     end
-    button:SetHighlightTexture("Interface\\Buttons\\WHITE8X8")
-    button:GetHighlightTexture():SetVertexColor(0.25, 0.65, 0.85, 0.16)
+    button:StyleButton(nil, true, true)
     button:SetScript("OnClick", click)
     return button
 end
 
--- Create an editable field with native text input and no auto-focus on window opening.
+-- Register input fonts with ElvUI while retaining native editing and focus behavior.
 function EH:Edit(parent, width, changed)
     local edit = CreateFrame("EditBox", nil, parent, "BackdropTemplate")
     self:Skin(edit, true)
-    local _, _, font = self:Palette()
-    edit:SetFont(font, 13, "")
+    edit:FontTemplate()
     edit:SetSize(width, 26); edit:SetAutoFocus(false); edit:SetMaxLetters(1024)
     edit:SetTextInsets(7, 7, 0, 0)
     -- Escape releases input focus before the containing window is dismissed.
@@ -92,4 +82,23 @@ function EH:Edit(parent, width, changed)
     edit:SetScript("OnEnterPressed", function(widget) widget:ClearFocus() end)
     if changed then edit:SetScript("OnTextChanged", changed) end
     return edit
+end
+
+-- Refresh only addon-owned media colors after ElvUI updates its configured palette.
+function EH:UpdateMedia()
+    local color = E.media.rgbvaluecolor
+    if self.scrollbar then self.scrollbar:GetThumbTexture():SetVertexColor(color[1], color[2], color[3]) end
+    if self.blueprintProgress then self.blueprintProgress:SetStatusBarColor(color[1], color[2], color[3]) end
+    if self.listBody then self:RenderList() end
+end
+
+-- Let ElvUI's native registries update fonts, templates, and status bars as settings change.
+function EH:RegisterMedia()
+    if self.mediaRegistered then return end
+    self.mediaRegistered = true
+    -- Apply palette changes to the two accent controls without changing ElvUI settings.
+    hooksecurefunc(E, "UpdateMedia", function() self:UpdateMedia() end)
+    -- Reflow rows when ElvUI changes font size, and geometry after its UI-scale adjustment.
+    hooksecurefunc(E, "UpdateFontTemplates", function() self:LayoutWindow() end)
+    hooksecurefunc(E, "UIScale", function() self:ApplyWindowSettings(); self:LayoutWindow() end)
 end

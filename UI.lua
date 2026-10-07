@@ -34,7 +34,7 @@ end
 
 -- Create one labeled filter with dynamically refreshed native choices.
 function EH:FilterControl(parent, key, label, choices, y)
-    local title = self:Label(parent, label, 12)
+    local title = self:Label(parent, label)
     title:SetPoint("TOPLEFT", 10, -y)
     local button = self:Button(parent, "", 176, function(widget)
         self:ChoiceMenu(widget, choices(), function() return self.filters[key] or "all" end,
@@ -135,7 +135,7 @@ function EH:CreateFilters(parent)
         end)
     end, "book")
     presets:SetPoint("TOPLEFT", 10, -806)
-    local help = self:Label(content, 'Search: name:, source:, zone:, vendor:, profession:, id:.\nUse "quoted phrases" or -exclude.', 11)
+    local help = self:Label(content, 'Search: name:, source:, zone:, vendor:, profession:, id:.\nUse "quoted phrases" or -exclude.')
     help:SetPoint("TOPLEFT", 10, -846); help:SetWidth(175); help:SetWordWrap(true)
 end
 
@@ -154,8 +154,8 @@ function EH:TextDialog(title, initial, accept, readOnly)
     if not self.textDialog then
         local dialog = CreateFrame("Frame", "ElementHousingTextDialog", UIParent, "BackdropTemplate")
         dialog:Hide(); dialog:SetSize(480, 132); dialog:SetPoint("CENTER"); dialog:SetFrameStrata("DIALOG")
-        self:Skin(dialog)
-        dialog.title = self:Label(dialog, "", 14); dialog.title:SetPoint("TOPLEFT", 14, -14)
+        self:Skin(dialog, false, true)
+        dialog.title = self:Label(dialog, ""); dialog.title:SetPoint("TOPLEFT", 14, -14)
         dialog.edit = self:Edit(dialog, 452); dialog.edit:SetMaxLetters(4096); dialog.edit:SetPoint("TOPLEFT", 14, -44)
         dialog.ok = self:Button(dialog, "Save", 90, function()
             if dialog.accept then dialog.accept(dialog.edit:GetText()) end
@@ -185,32 +185,27 @@ function EH:SaveGeometry()
     if x and y and px and py then self.db.position = { x = x * ratio - px, y = y * ratio - py } end
 end
 
--- Apply scale, lock, opacity, and dimensions; enforce the current screen's usable bounds.
+-- Inherit ElvUI's UI scale and clamp the saved dimensions to the current screen.
 function EH:ApplyWindowSettings()
     if not self.frame then return end
     local frame, settings = self.frame, self.db.settings
-    local scale = self:Clamp(settings.scale, 0.65, 1.5, 1)
-    frame:SetScale(scale)
-    local maxWidth, maxHeight = math.max(760, UIParent:GetWidth() / scale - 30), math.max(480, UIParent:GetHeight() / scale - 30)
+    local maxWidth, maxHeight = math.max(760, UIParent:GetWidth() - 30), math.max(480, UIParent:GetHeight() - 30)
     frame:SetResizeBounds(760, 480, maxWidth, maxHeight)
     frame:SetSize(self:Clamp(settings.width, 760, maxWidth, 1140), self:Clamp(settings.height, 480, maxHeight, 720))
-    frame:SetAlpha(self:Clamp(settings.opacity, 0.4, 1, 1))
     frame:SetMovable(not settings.locked); frame:SetResizable(settings.resizable and not settings.locked)
     self.resizeGrip:SetShown(settings.resizable and not settings.locked)
-    local _, _, font = self:Palette()
-    for _, row in ipairs(self.rows or {}) do row.name:SetFont(font, self:Clamp(settings.fontSize, 10, 20, 13), "OUTLINE") end
 end
 
 -- Create all controls under an immediately hidden parent; failed construction cannot leave a stray frame.
 function EH:CreateWindow()
     local frame = CreateFrame("Frame", "ElementHousingWindow", UIParent, "BackdropTemplate")
     frame:Hide(); self.frame = frame
-    self:Skin(frame); frame:SetFrameStrata("DIALOG"); frame:SetClampedToScreen(true)
+    self:Skin(frame, false, true); frame:SetFrameStrata("DIALOG"); frame:SetClampedToScreen(true)
     frame:EnableMouse(true); frame:SetMovable(true); frame:SetResizable(true)
     local position = self.db.position
     frame:SetPoint("CENTER", UIParent, "CENTER", position and tonumber(position.x) or 0, position and tonumber(position.y) or 0)
     tinsert(UISpecialFrames, "ElementHousingWindow")
-    local title = self:Label(frame, self:IconLabel("housing", self:Brand()) .. "  " .. self.version, 16)
+    local title = self:Label(frame, self:IconLabel("housing", self:Brand()) .. "  " .. self.version)
     title:SetPoint("TOPLEFT", 14, -12)
     local drag = CreateFrame("Frame", nil, frame)
     drag:SetPoint("TOPLEFT", 0, 0); drag:SetPoint("TOPRIGHT", -270, 0); drag:SetHeight(38)
@@ -244,7 +239,7 @@ function EH:CreateWindow()
     self.catalogPanel:SetPoint("TOPLEFT", 12, -82); self.catalogPanel:SetPoint("BOTTOMRIGHT", -12, 38)
     local sidebar = CreateFrame("Frame", nil, self.catalogPanel, "BackdropTemplate")
     self:Skin(sidebar, true); sidebar:SetPoint("TOPLEFT"); sidebar:SetPoint("BOTTOMLEFT"); sidebar:SetWidth(220)
-    local filterTitle = self:Label(sidebar, self:IconLabel("tags", "Browse and filter"), 13)
+    local filterTitle = self:Label(sidebar, self:IconLabel("tags", "Browse and filter"))
     filterTitle:SetPoint("TOPLEFT", 10, -8)
     self:CreateFilters(sidebar)
     self.details = CreateFrame("Frame", nil, self.catalogPanel, "BackdropTemplate")
@@ -276,17 +271,18 @@ function EH:CreateWindow()
     self:Skin(self.scrollbar); self.scrollbar:SetWidth(12)
     self.scrollbar:SetPoint("TOPRIGHT", -5, -45); self.scrollbar:SetPoint("BOTTOMRIGHT", -5, 8)
     self.scrollbar:SetOrientation("VERTICAL"); self.scrollbar:SetValueStep(1); self.scrollbar:SetObeyStepOnDrag(true)
-    self.scrollbar:SetThumbTexture("Interface\\Buttons\\WHITE8X8")
-    self.scrollbar:GetThumbTexture():SetSize(10, 32); self.scrollbar:GetThumbTexture():SetVertexColor(0.25, 0.65, 0.85)
+    self.scrollbar:SetThumbTexture(ElvUI[1].media.normTex)
+    self.scrollbar:GetThumbTexture():SetSize(10, 32)
+    ElvUI[1]:RegisterStatusBar(self.scrollbar:GetThumbTexture())
     self.scrollbar:SetMinMaxValues(0, 0)
     -- Avoid render recursion when updating the scrollbar from filtered data.
     self.scrollbar:SetScript("OnValueChanged", function(_, value) if not self.renderingList then self:SetScroll(value) end end)
-    self.emptyLabel = self:Label(self.listBody, "Open the catalog to load decor.", 13)
+    self.emptyLabel = self:Label(self.listBody, "Open the catalog to load decor.")
     self.emptyLabel:SetPoint("CENTER"); self.emptyLabel:SetWidth(230); self.emptyLabel:SetJustifyH("CENTER")
     self.rows = {}
     self:CreateDetails()
     self:CreateBlueprintPanel()
-    self.statusLabel = self:Label(frame, "", 12)
+    self.statusLabel = self:Label(frame, "")
     self.statusLabel:SetPoint("BOTTOMLEFT", 14, 13); self.statusLabel:SetPoint("BOTTOMRIGHT", -38, 13)
     self.resizeGrip = self:Button(frame, "/", 22, nil)
     self.resizeGrip:SetSize(22, 22); self.resizeGrip:SetPoint("BOTTOMRIGHT", -3, 3)
@@ -305,7 +301,7 @@ function EH:CreateWindow()
         if self.textDialog then self.textDialog:Hide() end
         self:ClearModel()
     end)
-    self:ApplyWindowSettings(); self:LayoutWindow(); self:SetView("catalog")
+    self:ApplyWindowSettings(); self:LayoutWindow(); self:UpdateMedia(); self:SetView("catalog")
     self.windowReady = true
 end
 
@@ -332,11 +328,11 @@ function EH:CreateRow(index)
     row.icon = row:CreateTexture(nil, "ARTWORK"); row.icon:SetSize(32, 32); row.icon:SetPoint("LEFT", 6, 0)
     row.name = self:Label(row, ""); row.name:SetPoint("TOPLEFT", 46, -6); row.name:SetPoint("TOPRIGHT", -48, -6)
     row.name:SetWordWrap(false); row.name:SetHeight(18)
-    row.meta = self:Label(row, "", 11); row.meta:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -3)
+    row.meta = self:Label(row, ""); row.meta:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -3)
     row.meta:SetPoint("RIGHT", -7, 0)
     row.meta:SetWordWrap(false)
-    row.count = self:Label(row, "", 11); row.count:SetPoint("TOPRIGHT", -7, -7)
-    row:SetHighlightTexture("Interface\\Buttons\\WHITE8X8"); row:GetHighlightTexture():SetVertexColor(0.25, 0.65, 0.85, 0.12)
+    row.count = self:Label(row, ""); row.count:SetPoint("TOPRIGHT", -7, -7)
+    row:StyleButton(nil, true, true)
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     row:EnableMouseWheel(true); row:SetScript("OnMouseWheel", function(_, delta) self:SetScroll((self.scrollOffset or 0) - delta * 3) end)
     -- Selection previews decor; shortcuts act only on the explicitly clicked record.
@@ -372,7 +368,8 @@ end
 function EH:RenderList()
     if not self.listBody then return end
     self.renderingList = true
-    local height = self:Clamp(self.db.settings.rowHeight, 38, 76, 48)
+    local fontHeight = ElvUI[1].db.general.fontSize + 4
+    local height = math.max(self:Clamp(self.db.settings.rowHeight, 38, 76, 48), fontHeight * 2 + 16)
     local count = math.max(1, math.floor(self.listBody:GetHeight() / height))
     count = math.min(count, 60)
     self.visibleRows = count
@@ -386,6 +383,7 @@ function EH:RenderList()
         if entry then
             row:ClearAllPoints(); row:SetPoint("TOPLEFT", 0, -(i - 1) * height)
             row:SetPoint("TOPRIGHT", 0, -(i - 1) * height); row:SetHeight(height - 2)
+            row.name:SetHeight(fontHeight)
             local info = entry.info
             if info.iconTexture then row.icon:SetTexture(info.iconTexture)
             elseif info.iconAtlas then row.icon:SetAtlas(info.iconAtlas)
@@ -396,7 +394,9 @@ function EH:RenderList()
             row.meta:SetText(self.db.settings.showSource and (entry.sourceLabel .. (entry.zoneName and " - " .. entry.zoneName or "")) or "")
             row.count:SetText(self.db.settings.showCounts and (entry.owned > 0 and tostring(entry.owned) or "Missing") or "")
             row.count:SetTextColor(entry.owned > 0 and 0.4 or 0.7, entry.owned > 0 and 0.85 or 0.7, entry.owned > 0 and 1 or 0.7)
-            row:SetBackdropBorderColor(self.selected == entry and 0.25 or 0.16, self.selected == entry and 0.7 or 0.18, self.selected == entry and 0.9 or 0.22)
+            row.forcedBorderColors = self.selected == entry and ElvUI[1].media.rgbvaluecolor or nil
+            local border = row.forcedBorderColors or ElvUI[1].media.bordercolor
+            row:SetBackdropBorderColor(border[1], border[2], border[3], border[4] or 1)
         end
     end
     self.emptyLabel:SetShown(#self.results == 0)
@@ -407,7 +407,7 @@ end
 -- Construct a single interactive native scene and a scrollable information panel.
 function EH:CreateDetails()
     local panel = self.details
-    self.detailName = self:Label(panel, "Select decor", 15)
+    self.detailName = self:Label(panel, "Select decor")
     self.detailName:SetPoint("TOPLEFT", 12, -12); self.detailName:SetPoint("TOPRIGHT", -12, -12)
     self.detailName:SetHeight(40); self.detailName:SetWordWrap(true)
     self.previewArea = CreateFrame("Frame", nil, panel, "BackdropTemplate")
@@ -415,13 +415,13 @@ function EH:CreateDetails()
     self.previewArea:SetPoint("TOPRIGHT", -10, -60); self.previewArea:SetHeight(210)
     self.modelFallback = self.previewArea:CreateTexture(nil, "ARTWORK")
     self.modelFallback:SetSize(64, 64); self.modelFallback:SetPoint("CENTER")
-    self.modelHint = self:Label(self.previewArea, "", 11); self.modelHint:SetPoint("BOTTOM", 0, 8)
+    self.modelHint = self:Label(self.previewArea, ""); self.modelHint:SetPoint("BOTTOM", 0, 8)
     local infoScroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
     infoScroll:SetPoint("TOPLEFT", self.previewArea, "BOTTOMLEFT", 2, -12)
     infoScroll:SetPoint("BOTTOMRIGHT", -30, 78)
     self.detailContent = CreateFrame("Frame", nil, infoScroll); self.detailContent:SetSize(280, 400)
     infoScroll:SetScrollChild(self.detailContent)
-    self.detailText = self:Label(self.detailContent, "", 12); self.detailText:SetPoint("TOPLEFT")
+    self.detailText = self:Label(self.detailContent, ""); self.detailText:SetPoint("TOPLEFT")
     self.detailText:SetWordWrap(true)
     -- Reflow source descriptions instead of clipping them when the window becomes narrower.
     infoScroll:HookScript("OnSizeChanged", function(_, width)
@@ -594,7 +594,7 @@ function EH:CreateBlueprintPanel()
     panel:Hide(); self:Skin(panel, true)
     panel:SetPoint("TOPLEFT", 12, -82); panel:SetPoint("BOTTOMRIGHT", -12, 38)
     self.blueprintPanel = panel
-    local title = self:Label(panel, self:IconLabel("book", "Blueprint library"), 15)
+    local title = self:Label(panel, self:IconLabel("book", "Blueprint library"))
     title:SetPoint("TOPLEFT", 12, -12)
     self.blueprintInput = self:Edit(panel, 300); self.blueprintInput:SetMaxLetters(4096)
     self.blueprintInput:SetPoint("TOPLEFT", 12, -44)
@@ -615,14 +615,15 @@ function EH:CreateBlueprintPanel()
     self.blueprintDetail = CreateFrame("Frame", nil, panel, "BackdropTemplate")
     self:Skin(self.blueprintDetail, true)
     self.blueprintDetail:SetPoint("TOPLEFT", 280, -86); self.blueprintDetail:SetPoint("BOTTOMRIGHT", -12, 12)
-    self.blueprintTitle = self:Label(self.blueprintDetail, "Select a blueprint or paste a share code", 14)
+    self.blueprintTitle = self:Label(self.blueprintDetail, "Select a blueprint or paste a share code")
     self.blueprintTitle:SetPoint("TOPLEFT", 12, -12); self.blueprintTitle:SetPoint("TOPRIGHT", -12, -12)
     self.blueprintProgress = CreateFrame("StatusBar", nil, self.blueprintDetail)
-    self.blueprintProgress:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-    self.blueprintProgress:SetStatusBarColor(0.25, 0.78, 0.92)
+    self.blueprintProgress:SetStatusBarTexture(ElvUI[1].media.normTex)
+    ElvUI[1]:RegisterStatusBar(self.blueprintProgress)
+    self:UpdateMedia()
     self.blueprintProgress:SetPoint("TOPLEFT", 12, -42); self.blueprintProgress:SetPoint("TOPRIGHT", -12, -42)
     self.blueprintProgress:SetHeight(8); self.blueprintProgress:SetMinMaxValues(0, 1); self.blueprintProgress:SetValue(0)
-    self.blueprintSummaryLabel = self:Label(self.blueprintDetail, "", 12)
+    self.blueprintSummaryLabel = self:Label(self.blueprintDetail, "")
     self.blueprintSummaryLabel:SetPoint("TOPLEFT", 12, -58); self.blueprintSummaryLabel:SetPoint("TOPRIGHT", -12, -58)
     local requirements = CreateFrame("ScrollFrame", nil, self.blueprintDetail, "UIPanelScrollFrameTemplate")
     requirements:SetPoint("TOPLEFT", 12, -94); requirements:SetPoint("BOTTOMRIGHT", -30, 80)
@@ -640,7 +641,7 @@ function EH:CreateBlueprintPanel()
         self:SetSetting("blueprintMissingOnly", not self.db.settings.blueprintMissingOnly); self:RenderBlueprints()
     end)
     missing:SetPoint("BOTTOMLEFT", 12, 46); self.blueprintMissingButton = missing
-    self.blueprintHelp = self:Label(panel, "Paste a Blizzard housing blueprint share code above.", 12)
+    self.blueprintHelp = self:Label(panel, "Paste a Blizzard housing blueprint share code above.")
     self.blueprintHelp:SetPoint("TOPLEFT", 12, -74)
 end
 

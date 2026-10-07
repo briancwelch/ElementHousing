@@ -1,15 +1,16 @@
-# ElementHousing 2.0.3
+# ElementHousing 2.0.4
 
-A native Midnight 12.1.0 housing catalog and blueprint library.The only bundled dependencies are the standard LibStub, CallbackHandler, LibDataBroker, and LibDBIcon launcher libraries.
+A native Midnight 12.1.0 housing catalog and blueprint library. **ElvUI is required.** nMediaTag (`ElvUI_mMediaTag`) and WindTools (`ElvUI_WindTools`) are optional. The standard LibStub, CallbackHandler, LibDataBroker, and LibDBIcon launcher libraries are bundled.
 
 This was vibecoded, it's something I wanted for World of Warcraft to suit my wife and I's needs.  I didn't want to learn Lua. I don't care what you think.
 
 ## Open and configure
 
-- Left-click the ElementHousing minimap icon, or use `/eh`. WindTools can collect this standard LibDBIcon button.
-- Right-click the icon, use `/eh config`, or open ElvUI > ElementHousing. Options use a left-hand feature tree, with tabs inside Window and Catalog, like WindTools.
-- Style follows ElvUI's font, backdrop, and borders. Control icons use the installed nMediaTag assets. When those addons are absent, a fixed native style and Blizzard icons keep the addon usable. There are no selectable themes.
-- Drag the title area to move the window. Drag its bottom-right corner to resize it. Movement/size lock, scale, opacity, row spacing, text size, details width, model controls, filter behavior, blueprints, minimap visibility, and waypoints have settings. Dimensions and position are saved account-wide.
+- Left-click the ElementHousing minimap icon, or use `/eh`. The launcher and addon list always use our original updater housing artwork. WindTools can collect the standard LibDBIcon button when installed.
+- Right-click the icon, use `/eh config`, or open ElvUI > ElementHousing. The options appear at the bottom of the ElvUI list beside its other plugins, with a left-hand feature tree and tabs inside Window and Catalog. Configuration uses ElvUI natively.
+- Appearance follows ElvUI's font, font size, outline, UI scale, status-bar textures, backdrop transparency, borders, and value colors. Existing controls join ElvUI's native update registries, so changes apply to ElementHousing too. Configure these in ElvUI; there are no separate addon font, scale, opacity, or theme overrides. Old saved appearance overrides are retired without deleting favorites, blueprints, filter presets, or saved geometry.
+- Control icons use the 16 original bundled glyphs and custom housing artwork. nMediaTag glyphs take precedence in the UI when loaded. Optional WindTools support includes minimap collection and its configured window shadows; disabled WindTools skins are respected.
+- Drag the title area to move the window. Drag its bottom-right corner to resize it. Movement/size lock, row spacing, details width, model controls, filter behavior, blueprints, minimap visibility, and waypoints have settings. Dimensions and position are saved account-wide.
 
 ## Catalog and filtering
 
@@ -57,10 +58,12 @@ Pending, unknown, invalid, or non-vendor destinations leave existing map pins in
 
 ## Development and verification
 
-Version: **2.0.3**. Interface target: **120100**. Account-wide saved variable: `ElementHousingDB`. Existing compatible root settings/favorites are preserved; the imported suite is not loaded.
+Version: **2.0.4**. Interface target: **120100**. Account-wide saved variable: `ElementHousingDB`. Existing compatible root settings/favorites are preserved; the imported suite is not loaded.
 
-Run `tests/run.py` with Python and `lupa` providing Lua 5.1. The checks compile every Lua file, verify TOC paths, exercise the actual bundled launcher libraries against explicit native frame contracts, test filter/zone/waypoint/blueprint behavior, cover expansion/currency combinations and merchant observations, and validate the options against the installed ElvUI AceConfig registry when available.
+Run `tests/run.py` with Python and `lupa` providing Lua 5.1. The checks compile every Lua file, verify TOC paths, exercise the actual bundled launcher libraries against explicit native frame contracts, test filter/zone/waypoint/blueprint behavior, cover expansion/currency combinations and merchant observations, and validate the options against the installed ElvUI AceConfig registry when available. The integration matrix covers ElvUI alone, each optional plugin, and both plugins together using installed ElvUI font/status helpers and AceConfig sorting. It verifies native appearance changes on existing controls, legacy override retirement, dependency metadata, and all 17 packaged textures.
 
-These are offline checks. Verify in-game after `/reload`: ElvUI plugin title/icon/tree, WindTools minimap collection, catalog loading, nMediaTag icon rendering, expansion/currency selectors, merchant observations and vendor waypoints, interactive 3D camera controls, resize/scroll behavior at your UI scale, current-zone source completeness, and live blueprint collection/import/export replies.
+These are offline checks. Verify in-game after `/reload`: ElvUI-only startup and bundled icons, plugin position/title/tree, font/outline/scale/texture/color changes through ElvUI, optional WindTools minimap collection and shadows, catalog loading, optional nMediaTag icon rendering, expansion/currency selectors, merchant observations and vendor waypoints, interactive 3D camera controls, resize/scroll behavior at your UI scale, current-zone source completeness, and live blueprint collection/import/export replies.
+
+Appearance references: [ElvUI templates and font registration](https://github.com/tukui-org/ElvUI/blob/main/ElvUI/Game/Shared/General/Toolkit.lua), [native media update registries](https://github.com/tukui-org/ElvUI/blob/main/ElvUI/Game/Shared/General/Core.lua), and [UI scaling](https://github.com/tukui-org/ElvUI/blob/main/ElvUI/Game/Shared/General/PixelPerfect.lua).
 
 API references: [Blizzard-generated catalog/searcher definitions](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingCatalogSearcherAPIDocumentation.lua), [content tracking](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/ContentTrackingDocumentation.lua), [blueprints](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingBlueprintUIDocumentation.lua), and [native model previews](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_HousingModelPreview/Blizzard_HousingModelPreview.lua).

@@ -2,10 +2,11 @@
 ## Title: ElementHousing
 ## Notes: An ElvUI-compatible housing catalog, acquisition browser, and blueprint library.
 ## Author: ElementHousing
-## Version: 2.0.3
+## Version: 2.0.4
 ## SavedVariables: ElementHousingDB
-## OptionalDeps: ElvUI, ElvUI_WindTools, ElvUI_mMediaTag
-## IconTexture: Interface\Icons\INV_Misc_EngGizmos_31
+## Dependencies: ElvUI
+## OptionalDeps: ElvUI_WindTools, ElvUI_mMediaTag
+## IconTexture: Interface\AddOns\ElementHousing\Media\Icon.tga
 
 Libs\LibStub.lua
 Libs\CallbackHandler-1.0.lua

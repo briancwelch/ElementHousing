@@ -1,12 +1,12 @@
 local addonName, EH = ...
 _G.ElementHousing = EH
-EH.name, EH.version = addonName, "2.0.3"
+EH.name, EH.version = addonName, "2.0.4"
 EH.entries, EH.results, EH.byID = {}, {}, {}
 EH.defaults = {
     schema = 2,
     settings = {
-        scale = 1, opacity = 1, width = 1140, height = 720, locked = false,
-        resizable = true, rowHeight = 48, fontSize = 13, detailsWidth = 330,
+        width = 1140, height = 720, locked = false,
+        resizable = true, rowHeight = 48, detailsWidth = 330,
         showModels = true, modelHeight = 210, modelRotation = true,
         showTooltips = true, showSource = true, showCounts = true,
         rememberFilters = true, professionMissingOnly = true, includeUnknownProfession = true,
@@ -102,7 +102,7 @@ function EH:RegisterLauncher()
     local icon = LibStub and LibStub("LibDBIcon-1.0", true)
     if not ldb or not icon then return end
     local object = ldb:NewDataObject(self.name, {
-        type = "launcher", text = self.name, icon = self:Icon("housing"),
+        type = "launcher", text = self.name, icon = self.brandIcon,
         -- Left click toggles the native window; right click opens configuration.
         OnClick = function(_, button)
             if button == "RightButton" then self:OpenOptions() else self:Toggle() end
@@ -122,14 +122,17 @@ end
 -- Initialize saved data and integrations after all optional dependencies have loaded.
 function EH:Initialize()
     if self.initialized then return end
+    if not ElvUI or not ElvUI[1] then self:Notify("ElvUI is required to use ElementHousing."); return false end
     self.initialized = true
     ElementHousingDB = type(ElementHousingDB) == "table" and ElementHousingDB or {}
     self.db = ElementHousingDB
     self:Defaults(self.db, self.defaults)
+    self.db.settings.scale, self.db.settings.opacity, self.db.settings.fontSize = nil, nil, nil
     self.db.schema = 2
     if not self.db.settings.rememberFilters then self.db.filters = self:Copy(self.defaults.filters) end
     self.filters = self.db.filters
     self:UpdateProfessions()
+    self:RegisterMedia()
     self:RegisterOptions()
     self:RegisterLauncher()
     SLASH_ELEMENTHOUSING1, SLASH_ELEMENTHOUSING2 = "/eh", "/elementhousing"
@@ -151,6 +154,9 @@ EH.events = CreateFrame("Frame")
 EH.events:SetScript("OnEvent", function(_, event, ...)
     if event == "PLAYER_LOGIN" then EH:Initialize(); return end
     if not EH.initialized then return end
+    if event == "UI_SCALE_CHANGED" or event == "DISPLAY_SIZE_CHANGED" then
+        EH:ApplyWindowSettings(); EH:LayoutWindow(); return
+    end
     if event == "MERCHANT_SHOW" then EH.merchantOpen = true; EH:ObserveMerchant(); return end
     if event == "MERCHANT_UPDATE" then EH:ObserveMerchant(); return end
     if event == "MERCHANT_CLOSED" then EH.merchantOpen = false; return end
@@ -173,7 +179,7 @@ EH.events:SetScript("OnEvent", function(_, event, ...)
     end
     EH:ScheduleRefresh()
 end)
-for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_REGEN_ENABLED", "SKILL_LINES_CHANGED",
+for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_REGEN_ENABLED", "UI_SCALE_CHANGED", "DISPLAY_SIZE_CHANGED", "SKILL_LINES_CHANGED",
     "TRADE_SKILL_LIST_UPDATE", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED",
     "MERCHANT_SHOW", "MERCHANT_UPDATE", "MERCHANT_CLOSED", "GET_ITEM_INFO_RECEIVED",
     "HOUSING_STORAGE_UPDATED", "HOUSING_STORAGE_ENTRY_UPDATED", "TRACKABLE_INFO_UPDATE",

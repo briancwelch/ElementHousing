@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.4 - 2026-10-07
+
+- Make ElvUI the only required addon. Keep nMediaTag and WindTools optional, and use ElvUI's native plugin configuration exclusively. Place ElementHousing at the bottom of the settings list beside the other plugins.
+- Restore the original updater housing artwork for the minimap launcher and addon list. Bundle 16 original control glyphs; use nMediaTag glyphs in the UI only when it is loaded. Keep standard WindTools minimap collection and support its configured window shadows.
+- Follow ElvUI's font, font size, outline, UI scale, status-bar textures, backdrop transparency, borders, and value colors through native templates and update registries. Retire separate saved font, scale, and opacity overrides while preserving user data and window geometry. Reflow rows for font-size changes and refresh bounds after scale/display changes.
+- Verify all four optional-addon combinations with installed ElvUI font/status helpers and AceConfig sorting, dependency failure behavior, live media changes in the offline harness, and the 17 packaged textures. In-game rendering and optional plugin collection still require client verification.
+- Include the branded launcher and every fallback glyph in the install-ready `ElementHousing.zip` asset for the GitHub updater.
+
 ## 2.0.3 - 2026-10-07
 
 - Fix vendor waypoints stopping when Blizzard's preferred-map lookup has no result. Query the current and known source maps, validate native vendor coordinates, and retain existing-pin confirmation and combat protection.
