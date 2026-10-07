@@ -1,6 +1,8 @@
 # ElementHousing 2.0.2
 
-A native Midnight 12.1.0 housing catalog and blueprint library. The previous imported housing suite has been replaced completely. The only bundled dependencies are the standard LibStub, CallbackHandler, LibDataBroker, and LibDBIcon launcher libraries.
+A native Midnight 12.1.0 housing catalog and blueprint library.The only bundled dependencies are the standard LibStub, CallbackHandler, LibDataBroker, and LibDBIcon launcher libraries.
+
+This was vibecoded, it's something I wanted for World of Warcraft to suit my wife and I's needs.  I didn't want to learn Lua. I don't care what you think.
 
 ## Open and configure
 
