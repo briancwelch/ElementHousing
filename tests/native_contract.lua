@@ -154,9 +154,15 @@ maps = { [100] = { mapID = 100, name = "Elwynn Forest", mapType = 3, parentMapID
     [101] = { mapID = 101, name = "Goldshire Inn", mapType = 5, parentMapID = 100 },
     [200] = { mapID = 200, name = "Westfall", mapType = 3, parentMapID = 1 } }
 currentMap = 101
+playerPositions = { [100] = { x = 0.42, y = 0.62 }, [101] = { x = 0.2, y = 0.3 } }
 C_Map = { GetMapInfo = function(id) return maps[id] end,
     GetMapChildrenInfo = function() return { maps[100], maps[200] } end,
     GetBestMapForUnit = function() return currentMap end,
+    -- Return independent native map vectors so merchant observations snapshot the location.
+    GetPlayerMapPosition = function(id)
+        local point = playerPositions[id]
+        if point then return { x = point.x, y = point.y, GetXY = function(self) return self.x, self.y end } end
+    end,
     CanSetUserWaypointOnMap = function(id) return maps[id] ~= nil end,
     HasUserWaypoint = function() return waypoint ~= nil end,
     SetUserWaypoint = function(point) waypoint = point end }
@@ -167,7 +173,33 @@ C_ContentTracking = { GetCurrentTrackingTarget = function(_, id) local t = targe
     GetVendorTrackingInfo = function(id) return vendors[id] end,
     GetEncounterTrackingInfo = function() return nil end,
     GetBestMapForTrackable = function(_, id, ignore) assert(ignore == true); local point = locations[id]; return point and point.status or 2, point and point.mapID end,
-    GetNextWaypointForTrackable = function(_, id, mapID) local point = locations[id]; return point and point.status or 2, point end }
+    -- Waypoint coordinates belong to the requested map, not whichever map the test last used.
+    GetNextWaypointForTrackable = function(_, id, mapID)
+        local point = locations[id]
+        if point and point.mapID == mapID then return point.status, point end
+        return Enum.ContentTrackingResult.Failure
+    end }
+itemMetadata, itemRequests, currencyInfo, merchantItems = {}, {}, {}, {}
+EXPANSION_NAME0, EXPANSION_NAME1, EXPANSION_NAME10, EXPANSION_NAME11 = "Classic", "The Burning Crusade", "The War Within", "Midnight"
+C_Item = {
+    -- Expose the documented fifteen-field item tuple, including expansion ID zero.
+    GetItemInfo = function(id)
+        local info = itemMetadata[id]
+        if info then return info.name or "Item", nil, 1, 1, 1, nil, nil, 1, nil, 1, 0, 1, 1, 1, info.expansionID end
+    end,
+    RequestLoadItemDataByID = function(id) itemRequests[#itemRequests + 1] = id end,
+}
+C_CurrencyInfo = { GetCurrencyInfo = function(id) return currencyInfo[id] end }
+UnitName = function() return merchantName end
+UnitGUID = function() return merchantGUID end
+GetMerchantNumItems = function() return #merchantItems end
+GetMerchantItemID = function(index) return merchantItems[index] and merchantItems[index].itemID end
+C_MerchantFrame = { GetItemInfo = function(index) return merchantItems[index] end }
+GetMerchantItemCostInfo = function(index) return #(merchantItems[index].costs or {}) end
+GetMerchantItemCostItem = function(index, costIndex)
+    local cost = merchantItems[index].costs[costIndex]
+    if cost then return 1, cost.amount, cost.link end
+end
 catalog = {}
 -- Supply a complete independent searcher contract and deterministic result callback.
 C_HousingCatalog = { CreateCatalogSearcher = function()
@@ -188,6 +220,8 @@ C_HousingCatalog = { CreateCatalogSearcher = function()
     return searcher
 end,
     GetCatalogEntryInfo = function(id) for _, info in ipairs(catalog) do if info.recordID == id.recordID then return info end end end,
+    -- Merchant item IDs resolve through the real catalog identifier contract.
+    GetCatalogEntryInfoByItem = function(itemID) for _, info in ipairs(catalog) do if info.itemID == itemID then return info end end end,
     GetAllFilterTagGroups = function() return { { groupID = 1, groupName = "Style", tags = { { tagID = 7, tagName = "Alliance" } } } } end,
     GetCatalogCategoryInfo = function(id) return { name = "Category " .. id } end,
     GetCatalogSubcategoryInfo = function(id) return { name = "Subcategory " .. id } end }

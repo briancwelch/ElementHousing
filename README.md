@@ -1,4 +1,4 @@
-# ElementHousing 2.0.2
+# ElementHousing 2.0.3
 
 A native Midnight 12.1.0 housing catalog and blueprint library.The only bundled dependencies are the standard LibStub, CallbackHandler, LibDataBroker, and LibDBIcon launcher libraries.
 
@@ -15,9 +15,13 @@ This was vibecoded, it's something I wanted for World of Warcraft to suit my wif
 
 The catalog uses its own `C_HousingCatalog.CreateCatalogSearcher()` and never alters Blizzard's catalog or editor frames. Loading starts when the window opens, proceeds in bounded batches, and stops when it closes. Only visible rows have buttons, and only the selected decor loads a 3D model.
 
-Combine collection state, acquisition source, zone, vendor, profession eligibility, category, subcategory, placement, quality, size, and native style/tag filters. Save reusable filter presets from the sidebar. Shift-click a row to favorite it; right-click a vendor row to request its waypoint.
+Combine collection state, acquisition source, zone, vendor, expansion, currency type, profession eligibility, category, subcategory, placement, quality, size, and native style/tag filters. Save reusable filter presets from the sidebar. Shift-click a row to favorite it; right-click a vendor row to request its waypoint.
 
-Known vendors and locations are retained as separate choices, including multiple vendors or zones listed for the same decor. Zone/vendor filters and field searches match any known alternative. Waypoints continue to use the destination supplied by Blizzard's tracking service.
+Known vendors and locations are retained as separate choices, including multiple vendors or zones listed for the same decor. Zone/vendor filters and field searches match any known alternative. Opening a merchant that sells catalog decor adds its verified items, purchase currencies, and your nearby location to account-wide saved data.
+
+**Expansion** uses Blizzard's localized catalog expansion tags when available, then the item's native introduction-expansion metadata. The latter may differ from the expansion associated with its appearance or source. Uncached metadata stays under **Unknown expansion** while the addon requests it.
+
+**Currency type** includes gold, native currencies, and item tokens from documented tracking costs and visited merchants. Mixed purchases match every known component. With a specific vendor selected, currency filtering uses that vendor's known costs. Items without a known vendor purchase currency appear under **Unknown / no vendor cost**, including decor from other acquisition sources. Both selectors work with other filters and saved presets.
 
 Shared zone names are treated as unknown locations unless a native map ID identifies the destination. A matching name alone does not put Outland decor in Draenor's current-zone results.
 
@@ -45,14 +49,18 @@ The inspector shows availability progress, required/missing quantities for decor
 
 ## Vendor waypoints
 
-Waypoints use Blizzard's content-tracking destination for the selected decor. Pending, unknown, invalid, or non-vendor destinations leave existing map pins intact. Replacing an existing user waypoint requests confirmation by default. Supertracking and replacement confirmation are configurable. Waypoint changes and blueprint operations are blocked during combat.
+Waypoints use Blizzard's content-tracking coordinates or a verified merchant visit for the selected decor. A missing preferred-map result no longer stops the lookup: the addon also queries the player's map and known source maps. Verified visits on the current map take priority, choosing the nearest visited seller unless a specific vendor is selected. Visit locations are approximate because they record the player's position while the shop is open.
+
+If no destination is supplied, open the selling vendor's shop once after `/reload`, then retry **Vendor waypoint**. This also learns purchase currencies without buying anything. For example, open Dethelin's shop before retrying Silvermoon Wooden Chair if its native destination is unavailable.
+
+Pending, unknown, invalid, or non-vendor destinations leave existing map pins intact. Replacing an existing user waypoint requests confirmation by default. Supertracking and replacement confirmation are configurable. Waypoint changes and blueprint operations are blocked during combat.
 
 ## Development and verification
 
-Version: **2.0.2**. Interface target: **120100**. Account-wide saved variable: `ElementHousingDB`. Existing compatible root settings/favorites are preserved; the imported suite is not loaded.
+Version: **2.0.3**. Interface target: **120100**. Account-wide saved variable: `ElementHousingDB`. Existing compatible root settings/favorites are preserved; the imported suite is not loaded.
 
-Run `tests/run.py` with Python and `lupa` providing Lua 5.1. The checks compile every Lua file, verify TOC paths, exercise the actual bundled launcher libraries against explicit native frame contracts, test filter/zone/waypoint/blueprint behavior, and validate the options against the installed ElvUI AceConfig registry when available.
+Run `tests/run.py` with Python and `lupa` providing Lua 5.1. The checks compile every Lua file, verify TOC paths, exercise the actual bundled launcher libraries against explicit native frame contracts, test filter/zone/waypoint/blueprint behavior, cover expansion/currency combinations and merchant observations, and validate the options against the installed ElvUI AceConfig registry when available.
 
-These are offline checks. Verify in-game after `/reload`: ElvUI plugin title/icon/tree, WindTools minimap collection, catalog loading, nMediaTag icon rendering, interactive 3D camera controls, resize/scroll behavior at your UI scale, current-zone source completeness, and live blueprint collection/import/export replies.
+These are offline checks. Verify in-game after `/reload`: ElvUI plugin title/icon/tree, WindTools minimap collection, catalog loading, nMediaTag icon rendering, expansion/currency selectors, merchant observations and vendor waypoints, interactive 3D camera controls, resize/scroll behavior at your UI scale, current-zone source completeness, and live blueprint collection/import/export replies.
 
 API references: [Blizzard-generated catalog/searcher definitions](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingCatalogSearcherAPIDocumentation.lua), [content tracking](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/ContentTrackingDocumentation.lua), [blueprints](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingBlueprintUIDocumentation.lua), and [native model previews](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_HousingModelPreview/Blizzard_HousingModelPreview.lua).

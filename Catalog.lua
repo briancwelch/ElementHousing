@@ -59,6 +59,7 @@ function EH:ReadSources(entry)
     entry.sourceText = type(info.sourceText) == "string" and info.sourceText or ""
     entry.sources, entry.professionIDs = self:ParseSources(entry.sourceText)
     entry.maps, entry.vendorNames, entry.zoneNames, entry.ambiguousZones = {}, {}, {}, {}
+    entry.currencyTypes, entry.vendorCurrencies = {}, {}
     -- Localized source label lines supplement tracking when its structured target is unavailable.
     for line in self:Plain(entry.sourceText):gmatch("[^\r\n]+") do
         local label, value = line:match("^%s*([^:]+):%s*(.-)%s*$")
@@ -111,6 +112,14 @@ function EH:ReadSources(entry)
                 entry.vendorName, entry.zoneName = vendor.creatureName or entry.vendorName, vendor.zoneName or entry.zoneName
                 entry.waypointVendorName = vendor.creatureName
                 entry.currencyType, entry.cost = vendor.currencyType, vendor.cost
+                local currency = vendor.currencyType
+                if self:Readable(currency) and type(currency) == "number" and currency >= 0
+                    and currency < math.huge and currency % 1 == 0 then
+                    self:AddCurrency(entry, currency == 0 and "gold" or ("currency:" .. currency), vendor.creatureName)
+                elseif self:Readable(currency) and currency == nil and self:Readable(vendor.cost) and type(vendor.cost) == "number"
+                    and vendor.cost >= 0 and vendor.cost < math.huge then
+                    self:AddCurrency(entry, "gold", vendor.creatureName)
+                end
             end
         end
         if kind == "drop" and targetID then
@@ -118,6 +127,7 @@ function EH:ReadSources(entry)
             if encounter then entry.encounterName, entry.instanceName = encounter.encounterName, encounter.instanceName end
         end
     end
+    self:ReadObservedSources(entry)
     if entry.vendorName then entry.vendorNames[entry.vendorName] = true end
     if entry.zoneName then entry.zoneNames[entry.zoneName] = true end
     for name in pairs(entry.zoneNames) do
@@ -167,6 +177,7 @@ function EH:MakeEntry(info)
     for _, id in ipairs(info.categoryIDs or {}) do entry.categories[id] = true end
     for _, id in ipairs(info.subcategoryIDs or {}) do entry.subcategories[id] = true end
     self:ReadSources(entry)
+    self:ReadExpansion(entry)
     return entry
 end
 
@@ -265,7 +276,10 @@ end
 -- Build source-aware vendor/zone choices and native category/subcategory labels.
 function EH:BuildFacets()
     self.zones, self.vendors, self.categories, self.subcategories, self.subcategoryParents = {}, {}, {}, {}, {}
+    self.expansions, self.currencies = {}, {}
     for _, entry in ipairs(self.entries) do
+        for id in pairs(entry.expansionIDs) do self.expansions[tostring(id)] = self:ExpansionName(id) end
+        for key in pairs(entry.currencyTypes) do self.currencies[key] = self:CurrencyName(key) end
         for name in pairs(entry.vendorNames) do self.vendors[name] = name end
         for name in pairs(entry.zoneNames) do
             local matched = false
@@ -308,26 +322,49 @@ function EH:VendorDestination(entry)
     if not entry or not entry.sources.vendor then return nil, "This decor has no known vendor route." end
     if InCombatLockdown() then return nil, "Vendor waypoints are unavailable during combat." end
     local tracking, map = C_ContentTracking, C_Map
-    if not tracking or not map or not map.SetUserWaypoint or not UiMapPoint then
+    if not map or not map.SetUserWaypoint or not UiMapPoint then
         return nil, "Native vendor waypoints are unavailable on this client."
+    end
+    local observed = self:ObservedVendorDestination(entry, true)
+    if observed then return observed end
+    if not tracking or not tracking.GetNextWaypointForTrackable then
+        return self:ObservedVendorDestination(entry), "Native vendor waypoints are unavailable on this client."
     end
     local typeID = Enum.ContentTrackingType.Decor
     local result, mapID = self:Call(tracking.GetBestMapForTrackable, typeID, entry.info.recordID, true)
-    if result == Enum.ContentTrackingResult.DataPending then return nil, "Vendor location is loading. Try again shortly." end
-    if result ~= Enum.ContentTrackingResult.Success or not mapID then return nil, "No vendor map is currently available." end
-    local status, location = self:Call(tracking.GetNextWaypointForTrackable, typeID, entry.info.recordID, mapID)
-    if status == Enum.ContentTrackingResult.DataPending then return nil, "Vendor location is loading. Try again shortly." end
-    if status ~= Enum.ContentTrackingResult.Success or not location
-        or location.targetType ~= Enum.ContentTrackingTargetType.Vendor then
-        return nil, "Blizzard has not supplied a vendor destination for this decor."
+    local candidates, seen, pending, invalid = {}, {}, result == Enum.ContentTrackingResult.DataPending, false
+    -- Map IDs are query candidates; only native vendor coordinates can become a destination.
+    local function addMap(id)
+        if self:Readable(id) and type(id) == "number" and id > 0 and id < math.huge and id % 1 == 0 and not seen[id] then
+            candidates[#candidates + 1], seen[id] = id, true
+        end
     end
-    local x, y = location.x, location.y
-    if not self:Readable(x) or not self:Readable(y) or type(x) ~= "number" or type(y) ~= "number"
-        or x ~= x or y ~= y or x < 0 or x > 1 or y < 0 or y > 1 or (x == 0 and y == 0)
-        or not map.CanSetUserWaypointOnMap(mapID) then
-        return nil, "This vendor location cannot accept a user waypoint."
+    if result == Enum.ContentTrackingResult.Success then addMap(mapID) end
+    local current = self:Call(map.GetBestMapForUnit, "player")
+    addMap(current); addMap(self:ZoneMap(current))
+    local known = {}
+    for id in pairs(entry.maps or {}) do known[#known + 1] = id end
+    table.sort(known)
+    for _, id in ipairs(known) do addMap(id) end
+    local vendor = self.filters and self.filters.vendor
+    for _, id in ipairs(candidates) do
+        local status, location = self:Call(tracking.GetNextWaypointForTrackable, typeID, entry.info.recordID, id)
+        pending = pending or status == Enum.ContentTrackingResult.DataPending
+        if status == Enum.ContentTrackingResult.Success and type(location) == "table"
+            and self:Readable(location.targetType) and location.targetType == Enum.ContentTrackingTargetType.Vendor then
+            local point = self:VendorPoint(id, location.x, location.y)
+            if point then
+                local info = self:Call(tracking.GetVendorTrackingInfo, entry.info.recordID)
+                point.vendorName = info and info.creatureName
+                if not vendor or vendor == "all" or point.vendorName == vendor then return point end
+            else invalid = true end
+        end
     end
-    return { mapID = mapID, x = x, y = y }
+    observed = self:ObservedVendorDestination(entry)
+    if observed then return observed end
+    if pending then return nil, "Vendor location is loading. Try again shortly." end
+    if invalid then return nil, "This vendor location cannot accept a user waypoint." end
+    return nil, "No vendor destination is available. Open the vendor's shop once to learn its location."
 end
 
 -- Place a user waypoint only after rechecking the destination and combat state.
@@ -336,7 +373,7 @@ function EH:PlaceVendorWaypoint(entry)
     if not location then self:Notify(reason); return false end
     C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(location.mapID, location.x, location.y))
     if self.db.settings.superTrack and C_SuperTrack then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
-    self:Notify("Vendor waypoint set: " .. (entry.waypointVendorName or entry.name))
+    self:Notify("Vendor waypoint set: " .. (location.vendorName or entry.waypointVendorName or entry.name))
     return true
 end
 

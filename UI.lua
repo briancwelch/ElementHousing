@@ -67,7 +67,7 @@ function EH:CreateFilters(parent)
     local scroll = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", 0, -30); scroll:SetPoint("BOTTOMRIGHT", -24, 8)
     local content = CreateFrame("Frame", nil, scroll)
-    content:SetSize(196, 822); scroll:SetScrollChild(content)
+    content:SetSize(196, 930); scroll:SetScrollChild(content)
     self:FilterControl(content, "ownership", "Collection", function() return ownership end, 0)
     self:FilterControl(content, "source", "Acquisition source", function() return self:SourceChoices() end, 54)
     self:FilterControl(content, "zone", "Zone", function()
@@ -85,11 +85,21 @@ function EH:CreateFilters(parent)
         for key, name in pairs(self.vendors or {}) do values[key] = name end
         return values
     end, 216)
+    self:FilterControl(content, "expansion", "Expansion", function()
+        local values = { all = "All expansions", unknown = "Unknown expansion" }
+        for key, name in pairs(self.expansions or {}) do values[key] = name end
+        return values
+    end, 270)
+    self:FilterControl(content, "currency", "Currency type", function()
+        local values = { all = "All currencies", unknown = "Unknown / no vendor cost" }
+        for key, name in pairs(self.currencies or {}) do values[key] = name end
+        return values
+    end, 324)
     self:FilterControl(content, "category", "Category", function()
         local values = { all = "All categories" }
         for key, name in pairs(self.categories or {}) do values[key] = name end
         return values
-    end, 270)
+    end, 378)
     self:FilterControl(content, "subcategory", "Subcategory", function()
         local values = { all = "All subcategories" }
         for key, name in pairs(self.subcategories or {}) do
@@ -98,19 +108,19 @@ function EH:CreateFilters(parent)
             if not category or not parent or parent == category then values[key] = name end
         end
         return values
-    end, 324)
-    self:FilterControl(content, "placement", "Placement", function() return placement end, 378)
-    self:FilterControl(content, "quality", "Quality", function() return qualities end, 432)
-    self:FilterControl(content, "size", "Size", function() return sizes end, 486)
-    self:FilterControl(content, "sort", "Sort by", function() return sorts end, 540)
+    end, 432)
+    self:FilterControl(content, "placement", "Placement", function() return placement end, 486)
+    self:FilterControl(content, "quality", "Quality", function() return qualities end, 540)
+    self:FilterControl(content, "size", "Size", function() return sizes end, 594)
+    self:FilterControl(content, "sort", "Sort by", function() return sorts end, 648)
     local tags = self:Button(content, "Tags / styles", 176, function(button) self:TagMenu(button) end, "tags")
-    tags:SetPoint("TOPLEFT", 10, -602)
+    tags:SetPoint("TOPLEFT", 10, -710)
     local customize = self:Button(content, "Customizable: any", 176, function()
         self:SetFilter("customizable", not self.filters.customizable)
     end)
-    customize:SetPoint("TOPLEFT", 10, -634); self.customizableButton = customize
+    customize:SetPoint("TOPLEFT", 10, -742); self.customizableButton = customize
     local reset = self:Button(content, "Reset filters", 176, function() self:ResetFilters() end, "refresh")
-    reset:SetPoint("TOPLEFT", 10, -666)
+    reset:SetPoint("TOPLEFT", 10, -774)
     local presets = self:Button(content, "Filter presets", 176, function(button)
         MenuUtil.CreateContextMenu(button, function(_, root)
             root:CreateButton("Save current filters...", function() self:TextDialog("Save filter preset", "", function(name) self:SavePreset(name) end) end)
@@ -124,9 +134,9 @@ function EH:CreateFilters(parent)
             end
         end)
     end, "book")
-    presets:SetPoint("TOPLEFT", 10, -698)
+    presets:SetPoint("TOPLEFT", 10, -806)
     local help = self:Label(content, 'Search: name:, source:, zone:, vendor:, profession:, id:.\nUse "quoted phrases" or -exclude.', 11)
-    help:SetPoint("TOPLEFT", 10, -738); help:SetWidth(175); help:SetWordWrap(true)
+    help:SetPoint("TOPLEFT", 10, -846); help:SetWidth(175); help:SetWordWrap(true)
 end
 
 -- Update selector captions without rebuilding menus or resetting scroll position.
@@ -476,7 +486,11 @@ end
 
 -- Format known native vendor costs without presenting absent cost data as free.
 function EH:CostText(entry)
+    if not self:Readable(entry.cost) or not self:Readable(entry.currencyType) then return "Unknown" end
     if entry.cost == nil then return "Unknown" end
+    if type(entry.cost) == "number" and (entry.cost ~= entry.cost or entry.cost < 0 or entry.cost == math.huge) then return "Unknown" end
+    if entry.currencyType ~= nil and (type(entry.currencyType) ~= "number" or entry.currencyType < 0
+        or entry.currencyType == math.huge or entry.currencyType % 1 ~= 0) then return "Unknown" end
     if entry.currencyType and entry.currencyType > 0 then
         local currency = self:Call(C_CurrencyInfo and C_CurrencyInfo.GetCurrencyInfo, entry.currencyType)
         return tostring(entry.cost) .. " " .. (currency and currency.name or ("currency " .. entry.currencyType))

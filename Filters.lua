@@ -223,6 +223,12 @@ function EH:Matches(entry, tokens)
     if f.ownership == "favorites" and not self.db.favorites[entry.key] then return false end
     if f.source ~= "all" and not entry.sources[f.source] then return false end
     if f.vendor and f.vendor ~= "all" and not (entry.vendorNames or {})[f.vendor] and entry.vendorName ~= f.vendor then return false end
+    if f.expansion and f.expansion ~= "all" then
+        if f.expansion == "unknown" then
+            if next(entry.expansionIDs) then return false end
+        elseif not entry.expansionIDs[tonumber(f.expansion)] then return false end
+    end
+    if not self:MatchesCurrency(entry, f.currency) then return false end
     if f.category and f.category ~= "all" and not entry.categories[tonumber(f.category)] then return false end
     if f.subcategory and f.subcategory ~= "all" and not entry.subcategories[tonumber(f.subcategory)] then return false end
     if f.quality ~= "all" and entry.info.quality ~= tonumber(f.quality) then return false end

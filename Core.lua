@@ -1,6 +1,6 @@
 local addonName, EH = ...
 _G.ElementHousing = EH
-EH.name, EH.version = addonName, "2.0.2"
+EH.name, EH.version = addonName, "2.0.3"
 EH.entries, EH.results, EH.byID = {}, {}, {}
 EH.defaults = {
     schema = 2,
@@ -15,8 +15,9 @@ EH.defaults = {
         blueprintMissingOnly = false, batchSize = 24, minimap = true,
     },
     filters = { ownership = "all", source = "all", zone = "all", profession = "all",
-        search = "", sort = "name", placement = "all", quality = "all", size = "all", tags = {} },
-    favorites = {}, blueprints = {}, presets = {}, minimap = { minimapPos = 220 },
+        search = "", sort = "name", placement = "all", quality = "all", size = "all", tags = {},
+        expansion = "all", currency = "all" },
+    favorites = {}, blueprints = {}, presets = {}, vendorSources = {}, minimap = { minimapPos = 220 },
 }
 
 -- Reject restricted API values before inspecting or persisting them.
@@ -150,6 +151,15 @@ EH.events = CreateFrame("Frame")
 EH.events:SetScript("OnEvent", function(_, event, ...)
     if event == "PLAYER_LOGIN" then EH:Initialize(); return end
     if not EH.initialized then return end
+    if event == "MERCHANT_SHOW" then EH.merchantOpen = true; EH:ObserveMerchant(); return end
+    if event == "MERCHANT_UPDATE" then EH:ObserveMerchant(); return end
+    if event == "MERCHANT_CLOSED" then EH.merchantOpen = false; return end
+    if event == "GET_ITEM_INFO_RECEIVED" then
+        local itemID, success = ...
+        if EH:Readable(itemID) and EH:Readable(success) and EH.requestedItems
+            and EH.requestedItems[itemID] and success then EH:ScheduleRefresh() end
+        return
+    end
     if event:find("HOUSING_BLUEPRINT", 1, true) then EH:BlueprintEvent(event, ...); return end
     if event == "SKILL_LINES_CHANGED" or event == "TRADE_SKILL_LIST_UPDATE" then EH:UpdateProfessions() end
     if event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" then
@@ -165,6 +175,7 @@ EH.events:SetScript("OnEvent", function(_, event, ...)
 end)
 for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_REGEN_ENABLED", "SKILL_LINES_CHANGED",
     "TRADE_SKILL_LIST_UPDATE", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED",
+    "MERCHANT_SHOW", "MERCHANT_UPDATE", "MERCHANT_CLOSED", "GET_ITEM_INFO_RECEIVED",
     "HOUSING_STORAGE_UPDATED", "HOUSING_STORAGE_ENTRY_UPDATED", "TRACKABLE_INFO_UPDATE",
     "TRACKING_TARGET_INFO_UPDATE", "CONTENT_TRACKING_UPDATE",
     "HOUSING_CATALOG_CATEGORY_UPDATED", "HOUSING_CATALOG_SUBCATEGORY_UPDATED",

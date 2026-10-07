@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.3 - 2026-10-07
+
+- Fix vendor waypoints stopping when Blizzard's preferred-map lookup has no result. Query the current and known source maps, validate native vendor coordinates, and retain existing-pin confirmation and combat protection.
+- Learn catalog items, nearby locations, and all purchase components from merchants opened by the player. Save these account-wide as fallback vendor routes, respect the selected vendor, and prefer the nearest visited seller on the current map. Explain how to learn a route when native tracking has no destination.
+- Add Expansion and Currency type selectors that combine with other catalog filters, reset, and saved presets. Prefer localized native expansion tags before item introduction metadata. Include gold, native currencies, item-token costs, mixed purchases, and explicit unknown choices; keep costs associated with their actual vendor.
+- Extend offline checks for the Dethelin/Silvermoon Wooden Chair failure, missing preferred maps, observed alternatives, unsafe acquisition data, item-cache notifications, and the complete expansion/currency/ownership matrix. Preserve ElvUI options validation; in-game routing and rendering require client verification.
+
 ## 2.0.2 - 2026-10-05
 
 - Apply profession eligibility consistently across every detected primary and secondary profession, every character skill combination, and characters with no professions. Refresh eligibility when skills change. Clarify that My professions is a general character filter; its header shortcut additionally selects missing decor, and restricting owned decor remains configurable.

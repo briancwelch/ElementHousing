@@ -18,7 +18,7 @@ locations[6] = { status = 0, mapID = 200, x = 0.4, y = 0.6, targetType = 1 }
 
 EH.events.scripts.OnEvent(EH.events, "PLAYER_LOGIN")
 Check(EH.frame == nil, "Login must not create a visible housing window")
-Check(EH.db.schema == 2 and EH.version == "2.0.2", "Fresh native schema and release")
+Check(EH.db.schema == 2 and EH.version == "2.0.3", "Fresh native schema and release")
 Check(EH.professions[755] and EH.professions[186] and not EH.professions[165], "Character is a jewelcrafter/miner")
 Check(pluginName == "ElementHousing" and EH.options.childGroups == "tree", "ElvUI plugin tree registration")
 local header = ElvUI[1].Options.name

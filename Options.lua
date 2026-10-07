@@ -45,7 +45,7 @@ function EH:BuildOptions()
     options.args.catalog = { type = "group", name = self:IconLabel("collection", "Catalog"), order = 20,
         childGroups = "tab", args = {
             filters = { type = "group", name = "Filter behavior", order = 1, args = {
-                help = { type = "description", order = 0, name = "Combine ownership, source, zone, vendor, profession, category, size, quality, placement, and tags. My professions checks all detected primary and secondary professions on the current character and updates when skills change. Search supports quoted phrases, -exclusions, name:, zone:, vendor:, source:, profession:, and id:." },
+                help = { type = "description", order = 0, name = "Combine ownership, source, zone, vendor, expansion, purchase currency, profession, category, size, quality, placement, and tags. Expansion uses native catalog tags or item metadata. Currency choices include verified native costs and vendors you have visited; unknown costs remain selectable. My professions checks all detected primary and secondary professions on the current character and updates when skills change. Search supports quoted phrases, -exclusions, name:, zone:, vendor:, source:, profession:, and id:." },
                 rememberFilters = self:Setting("rememberFilters", "Remember filters between sessions", "toggle", 1),
                 professionMissingOnly = self:Setting("professionMissingOnly", "Apply profession restrictions to missing decor only", "toggle", 2,
                     "Enable to keep owned decor visible under profession filtering. Disable to apply the selected profession filter to owned decor too. Known vendor, drop, quest, and achievement alternatives remain eligible."),
@@ -76,7 +76,7 @@ function EH:BuildOptions()
         open = { type = "execute", name = "Open blueprint library", order = 3, func = function() self:Show("blueprints") end },
     } }
     options.args.waypoints = { type = "group", name = self:IconLabel("teleports", "Vendor waypoints"), order = 40, args = {
-        help = { type = "description", order = 0, name = "Select a vendor item and use Vendor waypoint, or right-click its catalog row. Coordinates come from Blizzard's acquisition tracking; unknown or loading locations never replace your existing pin." },
+        help = { type = "description", order = 0, name = "Select a vendor item and use Vendor waypoint, or right-click its catalog row. Destinations use Blizzard's acquisition tracking or a nearby location recorded when you opened a merchant that sells the item. If tracking has no destination, visit the vendor and open its shop once. Unknown or loading locations never replace your existing pin." },
         superTrack = self:Setting("superTrack", "Super-track vendor waypoints", "toggle", 1),
         waypointConfirm = self:Setting("waypointConfirm", "Confirm replacing an existing map waypoint", "toggle", 2),
     } }
