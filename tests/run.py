@@ -62,10 +62,15 @@ acquisition = LuaRuntime(unpack_returned_tuples=True)
 load_addon(acquisition)
 acquisition.execute((ROOT / "tests" / "acquisition.lua").read_text(encoding="utf-8"))
 print(f"Vendor routes and acquisition filters: {acquisition.globals().checks} checks passed.")
+for feature in ("pvp", "housing"):
+    feature_runtime = LuaRuntime(unpack_returned_tuples=True)
+    load_addon(feature_runtime)
+    feature_runtime.execute((ROOT / "tests" / f"{feature}.lua").read_text(encoding="utf-8"))
+    print(f"{feature.capitalize()} behavior: {feature_runtime.globals().checks} checks passed.")
 
 
 def load_native_elvui_helpers(runtime):
-    """Exercise installed ElvUI font/status registries and AceConfig sorting, not copied approximations."""
+    """Exercise installed ElvUI font/status registries, sidebar rendering, and AceConfig sorting."""
     general = ROOT.parent / "ElvUI/Game/Shared/General"
     toolkit = (general / "Toolkit.lua").read_text(encoding="utf-8-sig")
     fonts = toolkit.split("local function FontTemplate(", 1)[1].split("\nlocal function StyleButton", 1)[0]
@@ -80,6 +85,40 @@ NativeFontTemplate = function(""" + fonts)
         body = re.search(r"function E:" + method + r"\([^\n]*\).*?\nend", core, re.S)
         assert body, f"Missing installed ElvUI helper: {method}"
         runtime.execute("local E, next = ElvUI[1], next\n" + body.group())
+    config = (general / "Config.lua").read_text(encoding="utf-8-sig")
+    sidebar = config.split("function E:Config_StripNameColor", 1)[1].split("\nfunction E:Config_CloseClicked", 1)[0]
+    runtime.execute("""
+local E = ElvUI[1]
+local sort, tinsert, ipairs, pairs, type = table.sort, table.insert, ipairs, pairs, type
+local ACD = { SelectGroup = function() end }
+-- Provide only nonvisual contracts; the installed ElvUI code still normalizes and sorts every page.
+local function tContains(values, value)
+    for _, candidate in ipairs(values) do if candidate == value then return true end end
+end
+E.StripString = function(_, value) return EH:Plain(value) end
+E.noop = function() end
+E.Config_HandleLeftButton = function(_, info, frame, _, buttons)
+    buttons[#buttons + 1] = info.key
+    return info.key
+end
+E.Config_CreateSeparatorLine = function(_, frame, last)
+    frame.separators[#frame.separators + 1] = last
+    return last
+end
+function E:Config_StripNameColor""" + sidebar + """
+-- Capture rendered page order and group separators through ElvUI's actual sidebar builder.
+function RenderNativeSidebar(options, originals)
+    local saved = E.OriginalOptions
+    E.OriginalOptions = originals or saved
+    local frame = { leftHolder = { buttons = {} }, separators = {} }
+    E:Config_CreateLeftButtons(frame, false, options)
+    E.OriginalOptions = saved
+    return frame.leftHolder.buttons, frame.separators
+end
+""")
+    tags = (ROOT.parent / "ElvUI_Options/Game/Shared/Tags.lua").read_text(encoding="utf-8-sig")
+    snapshot = tags.split("E.OriginalOptions =", 1)[1]
+    runtime.execute("local E = ElvUI[1]\nfunction SnapshotNativeOptions()\nE.OriginalOptions =" + snapshot + "\nend")
     dialog = ROOT.parent / "ElvUI_Libraries/Game/Shared/Ace3/AceConfig-3.0/AceConfigDialog-3.0/AceConfigDialog-3.0.lua"
     sorter = dialog.read_text(encoding="utf-8-sig").split("local function compareOptions", 1)[1].split("\n--builds", 1)[0]
     runtime.execute("local tempOrders, tempNames\nlocal function compareOptions" + sorter + """
@@ -100,6 +139,8 @@ end
 native_helper_paths = (
     ROOT.parent / "ElvUI/Game/Shared/General/Toolkit.lua",
     ROOT.parent / "ElvUI/Game/Shared/General/Core.lua",
+    ROOT.parent / "ElvUI/Game/Shared/General/Config.lua",
+    ROOT.parent / "ElvUI_Options/Game/Shared/Tags.lua",
     ROOT.parent / "ElvUI_Libraries/Game/Shared/Ace3/AceConfig-3.0/AceConfigDialog-3.0/AceConfigDialog-3.0.lua",
 )
 if all(path.is_file() for path in native_helper_paths):

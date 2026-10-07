@@ -10,8 +10,10 @@ ElementHousingDB = { settings = { scale = 1.4, opacity = 0.45, fontSize = 19 }, 
 E.db.general.fontSize, E.db.general.fontStyle = 16, "NONE"
 E.media.normFont, E.media.normTex = "Fonts\\UserFont.ttf", "Interface\\UserBar"
 E.Options.args.general = { type = "group", order = 1, name = "General" }
-E.Options.args.profiles = { type = "group", order = 99, name = "Profiles" }
-if nmediaLoaded then E.Options.args.mMT = { type = "group", name = "nMediaTag" } end
+E.Options.args.unitframe = { type = "group", order = 2, name = "UnitFrames" }
+E.Options.args.tagGroup = { type = "group", order = 3, name = "Available Tags" }
+E.Options.args.profiles = { type = "group", order = 4, name = "Profiles" }
+E.Options.args.plugins = { type = "group", order = 5, name = "Plugins" }
 shadowCalls = 0
 if windtoolsLoaded then
     E.private.WT = { skins = { enable = true, shadow = true } }
@@ -19,10 +21,15 @@ if windtoolsLoaded then
         -- Record only calls on ElementHousing-owned windows; no third-party frame is modified.
         CreateShadow = function(_, frame) shadowCalls = shadowCalls + 1; frame.windShadowApplied = true end,
     } } } }
-    E.Options.args.WindTools = { type = "group", name = "WindTools" }
 end
-local general, optional = E.Options.args.general, E.Options.args.WindTools or E.Options.args.mMT
+local general = E.Options.args.general
 EH:Initialize()
+Check(E.Options.args.ElementHousing == nil, "Plugin options do not enter ElvUI's original core-page snapshot")
+SnapshotNativeOptions()
+if nmediaLoaded then E.Options.args.mMT = { type = "group", name = "mMediaTag & Tools" } end
+if windtoolsLoaded then E.Options.args.WindTools = { type = "group", name = "WindTools" } end
+local optional = E.Options.args.WindTools or E.Options.args.mMT
+pluginCallback()
 Check(EH.db.settings.scale == nil and EH.db.settings.opacity == nil and EH.db.settings.fontSize == nil, "Remove legacy appearance overrides")
 Check(EH.db.favorites["decor:42"] and not EH.settingDefinitions.scale and not EH.settingDefinitions.opacity and not EH.settingDefinitions.fontSize, "Preserve user data while ElvUI owns appearance")
 Check(EH.broker.icon == EH.brandIcon and EH.brandIcon:find("ElementHousing\\Media\\Icon.tga", 1, true), "All optional combinations use the original branded launcher")
@@ -31,8 +38,15 @@ for _, icon in ipairs({ "housing", "collection", "book", "shop", "teleports", "a
     Check(resolved:find(nmediaLoaded and "ElvUI_mMediaTag" or "ElementHousing\\Media\\", 1, true), "Resolve control artwork for " .. icon)
 end
 Check(EH:Icon("../not-an-icon") == EH.brandIcon, "Unknown glyph names use the owned housing icon")
-local sorted = SortNativeOptions(E.Options.args)
-Check(sorted[#sorted] == "ElementHousing", "Native AceConfig places ElementHousing below core and optional plugin settings")
+local legacy = RenderNativeSidebar({ general = general, ElementHousing = { order = -1, name = EH:Brand() } }, { "general", "ElementHousing" })
+Check(legacy[1] == "ElementHousing", "Reproduce the released negative-order bug in ElvUI's actual sidebar")
+local sorted, separators = RenderNativeSidebar(E.Options.args)
+Check(sorted[1] == "general" and sorted[5] == "plugins" and sorted[6] == "ElementHousing", "Native ElvUI places ElementHousing first in the bottom plugin group")
+Check(separators[#separators] == "plugins", "ElementHousing appears below ElvUI's plugin separator")
+Check(not windtoolsLoaded or sorted[7] == "WindTools", "WindTools follows ElementHousing in the plugin group")
+Check(not nmediaLoaded or sorted[#sorted] == "mMT", "nMediaTag remains with the other plugin pages")
+local aceSorted = SortNativeOptions(E.Options.args)
+Check(aceSorted[1] == "general" and aceSorted[5] == "plugins", "Native AceConfig also keeps the plugin group after core pages")
 pluginCallback(); pluginCallback()
 Check(E.Options.args.general == general and (not optional or E.Options.args.WindTools == optional or E.Options.args.mMT == optional), "Plugin registration preserves existing options")
 Check(EH:Show() and EH.windowReady, "ElvUI-only and optional-addon clients open the catalog")

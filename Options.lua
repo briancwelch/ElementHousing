@@ -14,9 +14,10 @@ end
 -- Build the same left-hand feature tree used by WindTools, with focused pages within it.
 function EH:BuildOptions()
     self.settingDefinitions = {}
-    local options = { type = "group", order = -1, childGroups = "tree", name = self:IconLabel("housing", self:Brand()), args = {} }
+    -- ElvUI reserves sidebar orders 1-5 for core pages and 6 for plugin pages.
+    local options = { type = "group", order = 6, childGroups = "tree", name = self:IconLabel("housing", self:Brand()), args = {} }
     options.args.intro = { type = "description", order = 1, fontSize = "medium",
-        name = self:Brand() .. " " .. self.version .. "\nNative housing catalog and blueprint library. Account-wide settings. Appearance follows ElvUI settings. nMediaTag icons and WindTools integration are optional." }
+        name = self:Brand() .. " " .. self.version .. "\nNative housing catalog, blueprints, and neighborhood/house information. Account-wide settings. Appearance follows ElvUI settings. nMediaTag icons and WindTools integration are optional." }
     options.args.open = { type = "execute", name = "Open catalog", order = 2, func = function() self:Show("catalog") end }
     options.args.appearance = { type = "group", name = self:IconLabel("colors", "Window"), order = 10,
         childGroups = "tab", args = {
@@ -81,7 +82,7 @@ function EH:BuildOptions()
     options.args.launcher = { type = "group", name = self:IconLabel("menu", "Launcher and support"), order = 50, args = {
         minimap = self:Setting("minimap", "Show minimap icon", "toggle", 1,
             "Standard LibDBIcon launcher, compatible with WindTools minimap collectors. Left-click opens the window; right-click opens settings."),
-        help = { type = "description", order = 2, name = "/eh - toggle\n/eh catalog - catalog\n/eh blueprints - blueprint library\n/eh missing - missing decor\n/eh zone - missing decor in this zone\n/eh config - settings\n\nElvUI is required and controls appearance. Bundled control icons are used unless nMediaTag is loaded. WindTools can collect the branded minimap launcher and add its configured window shadows." },
+        help = { type = "description", order = 2, name = "/eh - toggle\n/eh catalog - catalog\n/eh blueprints - blueprint library\n/eh neighborhood - current neighborhood\n/eh house - owned houses\n/eh missing - missing decor\n/eh zone - missing decor in this zone\n/eh config - settings\n\nElvUI is required and controls appearance. Bundled control icons are used unless nMediaTag is loaded. WindTools can collect the branded minimap launcher and add its configured window shadows." },
     } }
     self.options = options
     return options
@@ -104,7 +105,6 @@ function EH:RegisterOptions()
     self:BuildOptions()
     local engine = ElvUI[1]
     engine.Libs.EP:RegisterPlugin(self.name, function() self:InsertOptions() end)
-    if engine.Options then self:InsertOptions() end
 end
 
 -- Open the native ElementHousing page in ElvUI's settings tree.

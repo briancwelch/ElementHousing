@@ -17,6 +17,7 @@ C_TradeSkillUI.GetTradeSkillDisplayName = function(id) return names[id] end
 C_TradeSkillUI.GetProfessionInfoBySkillLineID = function(id) return skillInfo[id] or { professionID = id } end
 C_TradeSkillUI.GetProfessionInfoByRecipeID = function(id) return recipeInfo[id] end
 EH:Initialize()
+Check(EH:Show("catalog"), "Profession shortcut window constructs")
 EH.db.settings.includeUnknownProfession = false
 EH.filters.ownership, EH.filters.profession = "missing", "mine"
 
@@ -26,18 +27,36 @@ local function Decor(id, source, stored, placed, redeemable)
         sourceText = source, totalNumStored = stored or 0, totalNumPlaced = placed or 0,
         remainingRedeemable = redeemable or 0 })
 end
-for id, name in pairs(names) do EH.entries[#EH.entries + 1] = Decor(id, "Profession: " .. name) end
+for id, name in pairs(names) do
+    EH.entries[#EH.entries + 1] = Decor(id, "Profession: " .. name)
+    EH.entries[#EH.entries + 1] = Decor(id + 1000, "Profession: " .. name .. "\nVendor: Merchant")
+end
+EH.entries[#EH.entries + 1] = Decor(999, "Vendor: Merchant")
+for _, entry in ipairs(EH.entries) do catalog[#catalog + 1] = entry.info end
 
 -- Refresh the detected character and assert every profession's visibility in the catalog.
 local function Character(slots, label)
     learned = slots
     EH.events.scripts.OnEvent(EH.events, "SKILL_LINES_CHANGED")
+    Drain()
     local expected, visible = {}, {}
     for _, id in pairs(slots) do expected[id] = true end
     for _, entry in ipairs(EH.results) do visible[entry.info.recordID] = true end
     for id, name in pairs(names) do
         Check((visible[id] == true) == (expected[id] == true), label .. ": " .. name)
     end
+    EH.professionShortcut.scripts.OnClick(EH.professionShortcut)
+    Drain()
+    Check(EH.filters.source == "profession" and EH.filters.profession == "mine" and EH.filters.ownership == "missing",
+        label .. ": header shortcut selects missing profession decor")
+    visible = {}
+    for _, entry in ipairs(EH.results) do visible[entry.info.recordID] = true end
+    Check(not visible[999], label .. ": ordinary vendor decor is excluded by the shortcut")
+    for id, name in pairs(names) do
+        Check((visible[id] == true) == (expected[id] == true), label .. ": shortcut profession " .. name)
+        Check((visible[id + 1000] == true) == (expected[id] == true), label .. ": shortcut alternate vendor " .. name)
+    end
+    EH.filters.source = "all"
 end
 Character({}, "No professions")
 for _, id in ipairs(primary) do

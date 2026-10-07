@@ -67,7 +67,7 @@ function EH:CreateFilters(parent)
     local scroll = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", 0, -30); scroll:SetPoint("BOTTOMRIGHT", -24, 8)
     local content = CreateFrame("Frame", nil, scroll)
-    content:SetSize(196, 930); scroll:SetScrollChild(content)
+    content:SetSize(196, 984); scroll:SetScrollChild(content)
     self:FilterControl(content, "ownership", "Collection", function() return ownership end, 0)
     self:FilterControl(content, "source", "Acquisition source", function() return self:SourceChoices() end, 54)
     self:FilterControl(content, "zone", "Zone", function()
@@ -119,8 +119,14 @@ function EH:CreateFilters(parent)
         self:SetFilter("customizable", not self.filters.customizable)
     end)
     customize:SetPoint("TOPLEFT", 10, -742); self.customizableButton = customize
+    local pvpLabel = self:Label(content, "Hide PvP Decorations")
+    pvpLabel:SetPoint("TOPLEFT", 10, -778)
+    local pvp = self:Button(content, "Disabled", 176, function()
+        self:SetFilter("hidePvP", not self.filters.hidePvP)
+    end)
+    pvp:SetPoint("TOPLEFT", 10, -796); self.hidePvPButton = pvp
     local reset = self:Button(content, "Reset filters", 176, function() self:ResetFilters() end, "refresh")
-    reset:SetPoint("TOPLEFT", 10, -774)
+    reset:SetPoint("TOPLEFT", 10, -828)
     local presets = self:Button(content, "Filter presets", 176, function(button)
         MenuUtil.CreateContextMenu(button, function(_, root)
             root:CreateButton("Save current filters...", function() self:TextDialog("Save filter preset", "", function(name) self:SavePreset(name) end) end)
@@ -134,9 +140,9 @@ function EH:CreateFilters(parent)
             end
         end)
     end, "book")
-    presets:SetPoint("TOPLEFT", 10, -806)
+    presets:SetPoint("TOPLEFT", 10, -860)
     local help = self:Label(content, 'Search: name:, source:, zone:, vendor:, profession:, id:.\nUse "quoted phrases" or -exclude.')
-    help:SetPoint("TOPLEFT", 10, -846); help:SetWidth(175); help:SetWordWrap(true)
+    help:SetPoint("TOPLEFT", 10, -900); help:SetWidth(175); help:SetWordWrap(true)
 end
 
 -- Update selector captions without rebuilding menus or resetting scroll position.
@@ -147,6 +153,9 @@ function EH:RenderFilters()
         control.button.text:SetText(choices[value] or choices[tonumber(value)] or tostring(value))
     end
     if self.customizableButton then self.customizableButton.text:SetText(self.filters.customizable and "Customizable: only" or "Customizable: any") end
+    if self.hidePvPButton then
+        self.hidePvPButton.text:SetText(self.filters.hidePvP and "Enabled" or "Disabled")
+    end
 end
 
 -- Display a reusable text-entry dialog for names and copyable blueprint codes.
@@ -218,25 +227,28 @@ function EH:CreateWindow()
     local config = self:Button(frame, "Settings", 92, function() self:OpenOptions() end, "general")
     config:SetPoint("RIGHT", close, "LEFT", -6, 0)
     local refresh = self:Button(frame, "Refresh", 92, function()
-        self:RefreshCatalog(); if self.view == "blueprints" then self:RefreshBlueprints() end
+        if self.view == "neighborhood" or self.view == "house" then self:RefreshHousingInfo()
+        elseif self.view == "blueprints" then self:RefreshBlueprints()
+        else self:RefreshCatalog() end
     end, "refresh")
     refresh:SetPoint("RIGHT", config, "LEFT", -6, 0)
     self.catalogTab = self:Button(frame, "Catalog", 120, function() self:SetView("catalog") end, "collection")
     self.catalogTab:SetPoint("TOPLEFT", 12, -44)
     self.blueprintTab = self:Button(frame, "Blueprints", 130, function() self:SetView("blueprints") end, "book")
     self.blueprintTab:SetPoint("LEFT", self.catalogTab, "RIGHT", 6, 0)
+    self.neighborhoodTab = self:Button(frame, "Neighborhood", 152, function() self:SetView("neighborhood") end, "general")
+    self.neighborhoodTab:SetPoint("LEFT", self.blueprintTab, "RIGHT", 6, 0)
+    self.houseTab = self:Button(frame, "House", 110, function() self:SetView("house") end, "housing")
+    self.houseTab:SetPoint("LEFT", self.neighborhoodTab, "RIGHT", 6, 0)
     self.zoneShortcut = self:Button(frame, "Missing here", 140, function()
         self.filters.ownership, self.filters.zone = "missing", "current"
         self:SetView("catalog"); self.scrollOffset = 0; self:ApplyFilters()
     end, "teleports")
-    self.zoneShortcut:SetPoint("LEFT", self.blueprintTab, "RIGHT", 12, 0)
-    self.professionShortcut = self:Button(frame, "My professions", 150, function()
-        self.filters.ownership, self.filters.profession = "missing", "mine"
-        self:SetView("catalog"); self.scrollOffset = 0; self:ApplyFilters()
-    end, "professions")
+    self.zoneShortcut:SetPoint("TOPLEFT", 12, -78)
+    self.professionShortcut = self:Button(frame, "My professions", 150, function() self:BrowseMyProfessions() end, "professions")
     self.professionShortcut:SetPoint("LEFT", self.zoneShortcut, "RIGHT", 6, 0)
     self.catalogPanel = CreateFrame("Frame", nil, frame)
-    self.catalogPanel:SetPoint("TOPLEFT", 12, -82); self.catalogPanel:SetPoint("BOTTOMRIGHT", -12, 38)
+    self.catalogPanel:SetPoint("TOPLEFT", 12, -118); self.catalogPanel:SetPoint("BOTTOMRIGHT", -12, 38)
     local sidebar = CreateFrame("Frame", nil, self.catalogPanel, "BackdropTemplate")
     self:Skin(sidebar, true); sidebar:SetPoint("TOPLEFT"); sidebar:SetPoint("BOTTOMLEFT"); sidebar:SetWidth(220)
     local filterTitle = self:Label(sidebar, self:IconLabel("tags", "Browse and filter"))
@@ -282,6 +294,7 @@ function EH:CreateWindow()
     self.rows = {}
     self:CreateDetails()
     self:CreateBlueprintPanel()
+    self:CreateHousingPanels()
     self.statusLabel = self:Label(frame, "")
     self.statusLabel:SetPoint("BOTTOMLEFT", 14, 13); self.statusLabel:SetPoint("BOTTOMRIGHT", -38, 13)
     self.resizeGrip = self:Button(frame, "/", 22, nil)
@@ -318,6 +331,7 @@ function EH:LayoutWindow()
     local modelHeight = math.min(self:Clamp(self.db.settings.modelHeight, 120, 360, 210), math.max(120, self.details:GetHeight() * 0.42))
     if self.previewArea then self.previewArea:SetHeight(modelHeight) end
     if self.blueprintPanel then self:LayoutBlueprints() end
+    if self.infoPages then self:RenderHousingInfo() end
     self:RenderList()
 end
 
@@ -534,15 +548,26 @@ function EH:RenderDetails()
     self:RenderModel()
 end
 
--- Switch between catalog and blueprint workspaces without recreating the window.
+-- Refresh the active tab accent from ElvUI without requesting housing data.
+function EH:RenderTabs()
+    local color = ElvUI[1].media.rgbvaluecolor
+    for key, tab in pairs({ catalog = self.catalogTab, blueprints = self.blueprintTab,
+        neighborhood = self.neighborhoodTab, house = self.houseTab }) do
+        if key == self.view then tab.text:SetTextColor(color[1], color[2], color[3]) else tab.text:SetTextColor(1, 1, 1) end
+    end
+end
+
+-- Switch workspaces without rebuilding controls or carrying a model into information pages.
 function EH:SetView(view)
-    self.view = view == "blueprints" and "blueprints" or "catalog"
+    self.view = (view == "blueprints" or view == "neighborhood" or view == "house") and view or "catalog"
     self.catalogPanel:SetShown(self.view == "catalog"); self.blueprintPanel:SetShown(self.view == "blueprints")
-    self.catalogTab.text:SetTextColor(self.view == "catalog" and 0.25 or 1, 1, 1)
-    self.blueprintTab.text:SetTextColor(self.view == "blueprints" and 0.53 or 1, self.view == "blueprints" and 0.53 or 1, 1)
-    if self.view == "blueprints" then self:ClearModel() else self:RenderDetails() end
+    self.zoneShortcut:SetShown(self.view == "catalog"); self.professionShortcut:SetShown(self.view == "catalog")
+    self:RenderTabs()
+    for key, page in pairs(self.infoPages or {}) do page.panel:SetShown(key == self.view) end
+    if self.view == "catalog" then self:RenderDetails() else self:ClearModel() end
     if self.frame:IsShown() then
         if self.view == "blueprints" then self:RefreshBlueprints()
+        elseif self.view == "neighborhood" or self.view == "house" then self:RefreshHousingInfo()
         elseif self.dirty or not self.searcher then self:RefreshCatalog() end
     end
     self:RenderStatus()
@@ -574,7 +599,9 @@ end
 -- Display collection progress and filter totals without fabricated achievement data.
 function EH:RenderStatus()
     if not self.statusLabel then return end
-    local message = self.notice or (self.view == "blueprints" and self.blueprintStatus) or self.catalogStatus
+    local infoView = self.view == "neighborhood" or self.view == "house"
+    local message = self.notice or (infoView and "Housing information updates as you travel and receive new data.")
+        or (self.view == "blueprints" and self.blueprintStatus) or self.catalogStatus
     if not message then
         local total, owned = #self.entries, self.ownedCount or 0
         message = string.format("Collection %d / %d (%d%%)  |  Missing %d  |  Showing %d", owned, total,

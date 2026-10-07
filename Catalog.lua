@@ -128,6 +128,7 @@ function EH:ReadSources(entry)
         end
     end
     self:ReadObservedSources(entry)
+    entry.isPvP = self:IsPvPDecor(entry)
     if entry.vendorName then entry.vendorNames[entry.vendorName] = true end
     if entry.zoneName then entry.zoneNames[entry.zoneName] = true end
     for name in pairs(entry.zoneNames) do

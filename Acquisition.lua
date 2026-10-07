@@ -15,6 +15,70 @@ local function CurrencyLink(link)
     if id and tonumber(id) > 0 then return "item:" .. tonumber(id) end
 end
 
+-- Match explicit PvP source labels as whole words, including Blizzard's localized labels.
+local function PvPSource(text)
+    text = EH:Plain(text):lower()
+    local names = { "PvP", "Player vs. Player", "Player versus Player", _G.PVP, _G.PLAYER_V_PLAYER }
+    for _, name in pairs(names) do
+        name = EH:Plain(name):lower()
+        if name ~= "" then
+            local first, last = text:find(name, 1, true)
+            while first do
+                local before, after = text:sub(first - 1, first - 1), text:sub(last + 1, last + 1)
+                if not before:find("[%w_\128-\255]") and not after:find("[%w_\128-\255]") then return true end
+                first, last = text:find(name, last + 1, true)
+            end
+        end
+    end
+    return false
+end
+
+-- Follow native achievement ancestry to PvP, including its legacy and feat-of-strength categories.
+local function PvPAchievement(id)
+    if not Number(id, 1) or id % 1 ~= 0 then return false end
+    local category = EH:Call(GetAchievementCategory, id)
+    local seen = {}
+    for _ = 1, 16 do
+        if not Number(category, 1) or category % 1 ~= 0 or seen[category] then return false end
+        seen[category] = true
+        local name, parent = EH:Call(GetCategoryInfo, category)
+        if category == 95 or PvPSource(name) then return true end
+        category = parent
+    end
+    return false
+end
+
+-- Classify only known PvP acquisition evidence; decor names and unknown sources cannot hide an item.
+function EH:IsPvPDecor(entry)
+    local text = self:Readable(entry.sourceText) and type(entry.sourceText) == "string" and entry.sourceText or ""
+    if PvPSource(text) then return true end
+    local tags = entry.info.dataTagsByID
+    if self:Readable(tags) and type(tags) == "table" then
+        for _, group in ipairs(self.tagGroups or {}) do
+            for _, tag in ipairs(group.tags or {}) do
+                if self:Readable(tags[tag.tagID]) and tags[tag.tagID] and PvPSource(tag.tagName) then return true end
+            end
+        end
+    end
+    local achievementType = Enum and Enum.ContentTrackingTargetType and Enum.ContentTrackingTargetType.Achievement or 2
+    if entry.targetType == achievementType and PvPAchievement(entry.targetID) then return true end
+    for id in text:gmatch("|Hachievement:(%d+)") do
+        if PvPAchievement(tonumber(id)) then return true end
+    end
+    local constants = Constants and Constants.CurrencyConsts or {}
+    local costs = {
+        ["currency:" .. (constants.HONOR_CURRENCY_ID or 1792)] = true,
+        ["currency:" .. (constants.CONQUEST_CURRENCY_ID or 1602)] = true,
+        ["currency:2123"] = true, -- Bloody Tokens.
+        ["item:137642"] = true, -- Mark of Honor.
+    }
+    for key in pairs(entry.currencyTypes or {}) do if costs[key] then return true end end
+    for kind, id in text:gmatch("|H(%a+):(%d+)") do
+        if costs[kind .. ":" .. tonumber(id)] then return true end
+    end
+    return false
+end
+
 -- Keep all verified currencies, including the association with their actual vendor.
 function EH:AddCurrency(entry, key, vendorName)
     if type(key) ~= "string" or (key ~= "gold" and not key:match("^currency:%d+$")

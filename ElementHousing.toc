@@ -1,8 +1,8 @@
 ## Interface: 120100
 ## Title: ElementHousing
-## Notes: An ElvUI-compatible housing catalog, acquisition browser, and blueprint library.
+## Notes: An ElvUI housing catalog, acquisition browser, blueprint library, and neighborhood/house information window.
 ## Author: ElementHousing
-## Version: 2.0.4
+## Version: 2.0.5
 ## SavedVariables: ElementHousingDB
 ## Dependencies: ElvUI
 ## OptionalDeps: ElvUI_WindTools, ElvUI_mMediaTag
@@ -18,5 +18,6 @@ Filters.lua
 Acquisition.lua
 Catalog.lua
 Blueprints.lua
+Housing.lua
 UI.lua
 Options.lua

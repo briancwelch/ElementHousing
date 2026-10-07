@@ -1,6 +1,6 @@
 local addonName, EH = ...
 _G.ElementHousing = EH
-EH.name, EH.version = addonName, "2.0.4"
+EH.name, EH.version = addonName, "2.0.5"
 EH.entries, EH.results, EH.byID = {}, {}, {}
 EH.defaults = {
     schema = 2,
@@ -16,7 +16,7 @@ EH.defaults = {
     },
     filters = { ownership = "all", source = "all", zone = "all", profession = "all",
         search = "", sort = "name", placement = "all", quality = "all", size = "all", tags = {},
-        expansion = "all", currency = "all" },
+        expansion = "all", currency = "all", hidePvP = false },
     favorites = {}, blueprints = {}, presets = {}, vendorSources = {}, minimap = { minimapPos = 220 },
 }
 
@@ -110,7 +110,7 @@ function EH:RegisterLauncher()
         -- Explain both launcher actions using the collector's supplied tooltip.
         OnTooltipShow = function(tooltip)
             tooltip:AddLine(self:Brand() .. " " .. self.version)
-            tooltip:AddLine("Left click: catalog and blueprints", 1, 1, 1)
+            tooltip:AddLine("Left click: catalog, blueprints, and housing information", 1, 1, 1)
             tooltip:AddLine("Right click: settings", 1, 1, 1)
         end,
     })
@@ -141,6 +141,7 @@ function EH:Initialize()
         text = (text or ""):lower():match("^%s*(.-)%s*$")
         if text == "config" or text == "settings" then self:OpenOptions()
         elseif text == "blueprints" then self:Show("blueprints")
+        elseif text == "neighborhood" or text == "house" then self:Show(text)
         elseif text == "missing" then self:SetFilter("ownership", "missing"); self:Show("catalog")
         elseif text == "zone" then
             self:SetFilter("ownership", "missing"); self:SetFilter("zone", "current"); self:Show("catalog")
@@ -154,6 +155,10 @@ EH.events = CreateFrame("Frame")
 EH.events:SetScript("OnEvent", function(_, event, ...)
     if event == "PLAYER_LOGIN" then EH:Initialize(); return end
     if not EH.initialized then return end
+    if EH.housingEvents and EH.housingEvents[event] then EH:HousingEvent(event, ...); return end
+    if event == "PLAYER_REGEN_ENABLED" and EH.housingDeferred then
+        EH.housingDeferred = nil; EH:RefreshHousingInfo()
+    end
     if event == "UI_SCALE_CHANGED" or event == "DISPLAY_SIZE_CHANGED" then
         EH:ApplyWindowSettings(); EH:LayoutWindow(); return
     end
@@ -169,6 +174,7 @@ EH.events:SetScript("OnEvent", function(_, event, ...)
     if event:find("HOUSING_BLUEPRINT", 1, true) then EH:BlueprintEvent(event, ...); return end
     if event == "SKILL_LINES_CHANGED" or event == "TRADE_SKILL_LIST_UPDATE" then EH:UpdateProfessions() end
     if event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" then
+        EH:RefreshHousingInfo()
         if EH.db.settings.autoZone and EH.filters.zone == "current" then EH:ApplyFilters(); EH:ScheduleRefresh() end
         return
     end
@@ -182,6 +188,7 @@ end)
 for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_REGEN_ENABLED", "UI_SCALE_CHANGED", "DISPLAY_SIZE_CHANGED", "SKILL_LINES_CHANGED",
     "TRADE_SKILL_LIST_UPDATE", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED",
     "MERCHANT_SHOW", "MERCHANT_UPDATE", "MERCHANT_CLOSED", "GET_ITEM_INFO_RECEIVED",
+    "RECEIVED_ACHIEVEMENT_LIST", "ACHIEVEMENT_EARNED",
     "HOUSING_STORAGE_UPDATED", "HOUSING_STORAGE_ENTRY_UPDATED", "TRACKABLE_INFO_UPDATE",
     "TRACKING_TARGET_INFO_UPDATE", "CONTENT_TRACKING_UPDATE",
     "HOUSING_CATALOG_CATEGORY_UPDATED", "HOUSING_CATALOG_SUBCATEGORY_UPDATED",

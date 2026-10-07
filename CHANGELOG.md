@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.5 - 2026-10-07
+
+- Fix ElementHousing appearing above ElvUI's core settings. Register through ElvUI's plugin callback after its core-page snapshot and use its plugin group order, placing ElementHousing ahead of WindTools and nMediaTag in the bottom addon group.
+- Add Hide PvP Decorations to the catalog. Recognize explicit/localized PvP sources and tags, PvP achievement ancestry, and known PvP currencies/tokens, including visited merchant costs. Keep unknown sources visible and support combined filters, presets, and reset.
+- Fix the My professions header shortcut to select missing Profession-source decor that matches the current character's primary and secondary skills. Exclude ordinary vendor rewards and unrelated profession requirements even when another acquisition route exists.
+- Add Neighborhood and House tabs, plus `/eh neighborhood` and `/eh house`. Show current neighborhood identity, plots/occupancy, available resident roster and endeavor details; show owned-house selection, identity, level/XP/unlocks, and live decor, room, floor, exterior, permission, and placement-budget information while at the selected home.
+- Use documented read-only housing APIs and asynchronous replies, scope cached data to its house/neighborhood, defer requests during combat, and prevent delayed replies from creating repeated request loops. Keep housing snapshots in session memory and follow native ElvUI font, scale, and color updates.
+- Extend offline checks for the actual ElvUI sidebar builder and all optional-addon combinations, the profession shortcut across all skill combinations, PvP classification/presets, housing context changes and delayed replies, and native permissions. In-game visual rendering and housing server availability require client verification.
+
 ## 2.0.4 - 2026-10-07
 
 - Make ElvUI the only required addon. Keep nMediaTag and WindTools optional, and use ElvUI's native plugin configuration exclusively. Place ElementHousing at the bottom of the settings list beside the other plugins.

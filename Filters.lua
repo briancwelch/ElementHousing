@@ -85,6 +85,15 @@ function EH:ResetFilters()
     self:ApplyFilters()
 end
 
+-- Focus the catalog on missing crafted decor for this character's current professions.
+function EH:BrowseMyProfessions()
+    self.filters.ownership, self.filters.source, self.filters.profession = "missing", "profession", "mine"
+    self.notice, self.scrollOffset = nil, 0
+    self:UpdateProfessions()
+    self:SetView("catalog")
+    self:ApplyFilters()
+end
+
 -- Save bounded, plain preset names; store independent copies of the filter state.
 function EH:SavePreset(name)
     name = self:Plain(name):gsub("|", ""):match("^%s*(.-)%s*$"):sub(1, 50)
@@ -161,7 +170,7 @@ end
 function EH:MatchesProfession(entry, mode)
     if mode == "all" then return true end
     if self.db.settings.professionMissingOnly and entry.owned > 0 then return true end
-    if entry.nonProfessionRoute then return true end
+    if entry.nonProfessionRoute and self.filters.source ~= "profession" then return true end
     if mode == "none" and entry.sources.profession then return false end
     -- Loading map/waypoint data does not invalidate an already known profession requirement.
     if not next(entry.professionIDs) then return self.db.settings.includeUnknownProfession end
@@ -217,6 +226,7 @@ end
 -- Combine filters without mistaking unverified ownership or sources for an acquisition route.
 function EH:Matches(entry, tokens)
     local f = self.filters
+    if f.hidePvP and entry.isPvP then return false end
     if f.ownership == "missing" and entry.owned > 0 then return false end
     if f.ownership == "owned" and entry.owned == 0 then return false end
     if f.ownership == "stored" and entry.stored == 0 then return false end
