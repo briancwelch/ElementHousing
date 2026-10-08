@@ -76,9 +76,14 @@ local function Event(name, ...)
     Check(EH.events.events[name], "Documented event registered: " .. name)
     EH.events.scripts.OnEvent(EH.events, name, ...)
 end
--- Read actual page text rather than reconstructing the implementation's expected line list.
+-- Read the structured facts supplied to dashboard cards, independent of their visual arrangement.
 local function Page(key)
-    return EH.infoPages[key].text:GetText()
+    local lines = {}
+    for _, section in ipairs(EH.infoPages[key].data.sections) do
+        if section.message then lines[#lines + 1] = section.message end
+        for _, field in ipairs(section.fields) do lines[#lines + 1] = field.label .. ": " .. field.value end
+    end
+    return table.concat(lines, "\n")
 end
 -- Match a complete user-facing fact in the rendered page.
 local function Contains(text, expected, message)
@@ -200,7 +205,7 @@ local houseRequests = requests.houses
 ElvUI[1].media.rgbvaluecolor = { .2, .4, .6 }; ElvUI[1]:UpdateMedia()
 Check(requests.houses == houseRequests, "Native palette updates never request house data")
 Check(EH.houseTab.text.state_SetTextColor[1] == .2, "Active tab follows native ElvUI colors")
-Contains(Page("house"), "|cff336699Your house", "Information headings follow native ElvUI colors")
+Check(EH.infoPages.house.cards["overview"].labels[1].state_SetTextColor[1] == .2, "Dashboard heading follows native ElvUI colors")
 EH.housing.houses = {}; current, owned = nil, false
 EH:RenderHousingInfo()
 Contains(Page("house"), "No owned houses were reported", "Empty owned-house replies have a clear state")

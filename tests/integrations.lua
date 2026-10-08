@@ -51,6 +51,8 @@ pluginCallback(); pluginCallback()
 Check(E.Options.args.general == general and (not optional or E.Options.args.WindTools == optional or E.Options.args.mMT == optional), "Plugin registration preserves existing options")
 Check(EH:Show() and EH.windowReady, "ElvUI-only and optional-addon clients open the catalog")
 Drain()
+SetupDashboardFixture()
+EH:SetView("neighborhood"); EH:SetView("house")
 local launcher = LibStub("LibDBIcon-1.0"):GetMinimapButton("ElementHousing")
 Check(launcher:GetName() == "LibDBIcon10_ElementHousing" and launcher.icon.texture == EH.brandIcon, "Use the standard collector-compatible LibDBIcon button")
 Check(not windtoolsLoaded or EH.frame.windShadowApplied, "Optional WindTools applies configured window shadows")
@@ -73,6 +75,14 @@ for widget in pairs(E.texts) do
 end
 Check(EH.rows[1].name:GetHeight() == 24 and EH.rows[1]:GetHeight() >= 56, "Row layout accommodates ElvUI font-size changes without clipping")
 Check(EH.blueprintProgress.state_SetStatusBarTexture[1] == E.media.normTex and EH.scrollbar:GetThumbTexture().texture == E.media.normTex, "Existing status media follows native texture refresh")
+for _, page in pairs(EH.infoPages) do
+    for _, card in pairs(page.cards) do
+        for _, bar in ipairs(card.bars) do
+            Check(E.statusBars[bar] and bar.state_SetStatusBarTexture[1] == E.media.normTex,
+                "Dashboard progress and capacity graphs follow actual native ElvUI media updates")
+        end
+    end
+end
 Check(EH.blueprintProgress.state_SetStatusBarColor[1] == 0.9 and EH.scrollbar:GetThumbTexture().color[2] == 0.2, "Accent controls follow native value colors")
 Check(EH.details.state_SetBackdropColor[4] == 0.7 and EH.details.state_SetBackdropBorderColor[1] == 0.8, "Native template refresh retains configured backdrop and borders")
 E.global.general.UIScale = 0.75

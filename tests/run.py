@@ -62,7 +62,7 @@ acquisition = LuaRuntime(unpack_returned_tuples=True)
 load_addon(acquisition)
 acquisition.execute((ROOT / "tests" / "acquisition.lua").read_text(encoding="utf-8"))
 print(f"Vendor routes and acquisition filters: {acquisition.globals().checks} checks passed.")
-for feature in ("pvp", "housing"):
+for feature in ("pvp", "housing", "dashboard"):
     feature_runtime = LuaRuntime(unpack_returned_tuples=True)
     load_addon(feature_runtime)
     feature_runtime.execute((ROOT / "tests" / f"{feature}.lua").read_text(encoding="utf-8"))
@@ -149,6 +149,8 @@ if all(path.is_file() for path in native_helper_paths):
             integration = LuaRuntime(unpack_returned_tuples=True)
             load_addon(integration)
             load_native_elvui_helpers(integration)
+            fixture = (ROOT / "tests/dashboard.lua").read_text(encoding="utf-8").split("\nEH:Initialize(); SetupDashboardFixture()", 1)[0]
+            integration.execute(fixture)
             integration.globals().nmediaLoaded = nmedia
             integration.globals().windtoolsLoaded = windtools
             integration.execute((ROOT / "tests/integrations.lua").read_text(encoding="utf-8"))

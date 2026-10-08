@@ -1,6 +1,6 @@
 local addonName, EH = ...
 _G.ElementHousing = EH
-EH.name, EH.version = addonName, "2.0.5"
+EH.name, EH.version = addonName, "2.0.6"
 EH.entries, EH.results, EH.byID = {}, {}, {}
 EH.defaults = {
     schema = 2,

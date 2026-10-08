@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.6 - 2026-10-08
+
+- Redesign Neighborhood and House as native ElvUI dashboards with branded summary headers, icon tiles, grouped detail cards, and responsive layouts instead of one long text list.
+- Add neighborhood occupancy and endeavor progress graphs, a plot-position chart using Blizzard's supplied coordinates, and milestone goal meters. Hover plot markers for owner and price details; browse complete plot, resident, and task directories with wrapping rows and full hover details.
+- Add house XP progress within the current level and native interior, exterior, and room budget meters. Show known zero values accurately, keep unavailable values unknown, and retain true usage percentages when a budget is exceeded.
+- Retain all available housing facts and move technical identifiers into an expandable section. Pool dashboard controls across notifications, preserve scroll position during updates, and hide stale live charts after travel.
+- Register every dashboard font and status bar with ElvUI. Follow its current font, scale, colors, textures, backdrop, and border settings, with bundled icons and optional nMediaTag/WindTools support.
+- Extend offline checks for accurate graphs, hover details, control reuse, three window widths and three font sizes, and all optional-addon combinations using actual installed ElvUI media helpers. Review rendered layout previews with sample data; live in-game rendering remains to be verified.
+
 ## 2.0.5 - 2026-10-07
 
 - Fix ElementHousing appearing above ElvUI's core settings. Register through ElvUI's plugin callback after its core-page snapshot and use its plugin group order, placing ElementHousing ahead of WindTools and nMediaTag in the bottom addon group.

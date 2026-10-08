@@ -1,5 +1,4 @@
 local _, EH = ...
-local E = ElvUI and ElvUI[1]
 EH.housing = { houses = {}, favor = {}, neighborhoods = {}, rosters = {}, rewards = {}, requests = {} }
 EH.housingEvents = {}
 for _, event in ipairs({ "PLAYER_HOUSE_LIST_UPDATED", "CURRENT_HOUSE_INFO_RECIEVED", "CURRENT_HOUSE_INFO_UPDATED",
@@ -66,16 +65,33 @@ local function EnumName(kind, value)
     return tostring(value)
 end
 
--- Add one readable field to the current information section.
-local function Field(lines, label, value)
-    lines[#lines + 1] = label .. ": " .. Text(value)
+-- Keep public values structured so cards, tables, and charts share the same native data.
+local function Field(sections, label, value)
+    local section = sections[#sections]
+    section.fields[#section.fields + 1] = { label = label, value = Text(value) }
 end
 
--- Use the user's native ElvUI value color for section headings.
-local function Section(lines, title)
-    local color = E.media.rgbvaluecolor
-    local hex = string.format("%02x%02x%02x", math.floor(color[1] * 255), math.floor(color[2] * 255), math.floor(color[3] * 255))
-    lines[#lines + 1] = (#lines > 0 and "\n" or "") .. "|cff" .. hex .. title .. "|r"
+-- Describe one dashboard card without choosing fonts, colors, or screen geometry in the data layer.
+local function Section(sections, title, kind, icon)
+    local section = { title = title, kind = kind or "fields", icon = icon or "general", fields = {} }
+    sections[#sections + 1] = section
+    return section
+end
+
+-- Explain unavailable information in its own card rather than substituting fabricated values.
+local function Message(sections, message)
+    sections[#sections].message = message
+end
+
+-- Define an honest summary tile; unknown values stay distinct from numeric zero.
+local function Stat(data, label, value, icon)
+    data.stats[#data.stats + 1] = { label = label, value = Text(value), icon = icon }
+end
+
+-- Retain technical identifiers for an optional detail card instead of crowding the main overview.
+local function Identifier(data, label, value)
+    data.identifiers = data.identifiers or {}
+    data.identifiers[#data.identifiers + 1] = { label = label, value = Text(value) }
 end
 
 -- Show native monetary values only when supplied; a missing price is not a free purchase.
@@ -204,119 +220,167 @@ function EH:HousingEvent(event, ...)
 end
 
 -- Present identity, available plot ownership, and the currently received resident roster.
-function EH:NeighborhoodLines()
-    local lines, api = {}, C_HousingNeighborhood or {}
+function EH:NeighborhoodData()
+    local sections, api = {}, C_HousingNeighborhood or {}
+    local data = { kind = "neighborhood", title = "Neighborhood", icon = "housing", sections = sections, stats = {} }
     local guid = self:Call(C_Housing and C_Housing.GetCurrentNeighborhoodGUID)
-    if type(guid) ~= "string" or guid == "" then return { "Enter a neighborhood to see its information." } end
+    if type(guid) ~= "string" or guid == "" then
+        Section(sections, "Explore your neighborhood", nil, "housing")
+        Message(sections, "Enter a neighborhood to see its information.")
+        return data
+    end
     local info = Record(self.housing.neighborhoods[guid])
     local mapID = self:Call(C_Housing and C_Housing.GetUIMapIDForNeighborhood, guid)
     local map = Record(self:Call(C_Map and C_Map.GetMapInfo, mapID))
-    Section(lines, "Current neighborhood")
-    Field(lines, "Name", info.neighborhoodName or self:Call(api.GetNeighborhoodName))
-    Field(lines, "Location", info.locationName or map.name)
-    Field(lines, "Type", EnumName("NeighborhoodType", info.neighborhoodType))
-    Field(lines, "Owner type", EnumName("NeighborhoodOwnerType", info.neighborhoodOwnerType))
-    Field(lines, "Owner", info.ownerName)
-    Field(lines, "Owner ID", info.ownerGUID)
-    Field(lines, "You are the owner", self:Call(api.IsNeighborhoodOwner))
-    Field(lines, "You are a manager", self:Call(api.IsNeighborhoodManager))
-    Field(lines, "Faction matches", self:Call(C_Housing and C_Housing.DoesFactionMatchNeighborhood, guid))
-    Field(lines, "Neighborhood ID", guid)
-    Field(lines, "Map ID", mapID)
+    data.title = Text(info.neighborhoodName or self:Call(api.GetNeighborhoodName))
+    data.subtitle = Text(info.locationName or map.name)
+    Section(sections, "Current neighborhood")
+    Field(sections, "Name", info.neighborhoodName or self:Call(api.GetNeighborhoodName))
+    Field(sections, "Location", info.locationName or map.name)
+    Field(sections, "Type", EnumName("NeighborhoodType", info.neighborhoodType))
+    Field(sections, "Owner type", EnumName("NeighborhoodOwnerType", info.neighborhoodOwnerType))
+    Field(sections, "Owner", info.ownerName)
+    Identifier(data, "Owner ID", info.ownerGUID)
+    Field(sections, "You are the owner", self:Call(api.IsNeighborhoodOwner))
+    Field(sections, "You are a manager", self:Call(api.IsNeighborhoodManager))
+    Field(sections, "Faction matches", self:Call(C_Housing and C_Housing.DoesFactionMatchNeighborhood, guid))
+    Identifier(data, "Neighborhood ID", guid)
+    Identifier(data, "Map ID", mapID)
     local plots, seen, occupied, vacant, unknown = {}, {}, 0, 0, 0
+    local vacantType = Enum.HousingPlotOwnerType and Enum.HousingPlotOwnerType.None or 0
     for _, plot in pairs(Record(self:Call(api.GetNeighborhoodMapData))) do
         plot = Record(plot)
         if Number(plot.plotID) and not seen[plot.plotID] then
             seen[plot.plotID], plots[#plots + 1] = true, plot
             if not Number(plot.ownerType) then unknown = unknown + 1
-            elseif plot.ownerType == (Enum.HousingPlotOwnerType and Enum.HousingPlotOwnerType.None or 0) then vacant = vacant + 1
+            elseif plot.ownerType == vacantType then vacant = vacant + 1
             else occupied = occupied + 1 end
         end
     end
     table.sort(plots, function(a, b) return a.plotID < b.plotID end)
-    Section(lines, "Plots")
-    if #plots == 0 then lines[#lines + 1] = "Plot details are not available yet."
+    local plotCard = Section(sections, "Neighborhood plots", "plots", "housing")
+    plotCard.plots, plotCard.rows = {}, {}
+    plotCard.columns = { "Plot", "Owner", "Status", "Price", "Coordinates" }
+    plotCard.counts = { occupied = occupied, vacant = vacant, unknown = unknown, total = #plots }
+    Stat(data, "Known plots", #plots > 0 and #plots or nil, "housing")
+    Stat(data, "Occupied", #plots > 0 and occupied or nil, "collection")
+    Stat(data, "Unowned", #plots > 0 and vacant or nil, "shop")
+    if #plots == 0 then Message(sections, "Plot details are not available yet.")
     else
-        Field(lines, "Known plots", #plots); Field(lines, "Occupied", occupied); Field(lines, "Unowned", vacant)
-        if unknown > 0 then Field(lines, "Ownership unknown", unknown) end
+        Field(sections, "Known plots", #plots); Field(sections, "Occupied", occupied); Field(sections, "Unowned", vacant)
+        if unknown > 0 then Field(sections, "Ownership unknown", unknown) end
         for _, plot in ipairs(plots) do
+            local point = { id = plot.plotID, owner = Text(plot.ownerName),
+                status = not Number(plot.ownerType) and "unknown" or (plot.ownerType == vacantType and "vacant" or "occupied") }
             local detail = Text(plot.ownerName) .. " (" .. EnumName("HousingPlotOwnerType", plot.ownerType) .. ")"
             if Number(plot.plotCost) then detail = detail .. " - " .. Text(Money(plot.plotCost)) end
             local position = plot.mapPosition
             if self:Readable(position) and (type(position) == "table" or type(position) == "userdata") and type(position.GetXY) == "function" then
                 local x, y = self:Call(position.GetXY, position)
                 if Number(x) and Number(y) and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
+                    point.x, point.y = x, y
                     detail = detail .. string.format(" - %.1f, %.1f", x * 100, y * 100)
                 end
             end
-            Field(lines, "Plot " .. plot.plotID, detail)
+            point.tooltip = "Plot " .. plot.plotID .. ": " .. detail
+            plotCard.plots[#plotCard.plots + 1] = point
+            plotCard.rows[#plotCard.rows + 1] = { cells = { Text(plot.plotID), Text(plot.ownerName),
+                point.status == "vacant" and "Unowned" or EnumName("HousingPlotOwnerType", plot.ownerType), Text(Money(plot.plotCost)),
+                point.x and string.format("%.1f, %.1f", point.x * 100, point.y * 100) or "Unknown" }, tooltip = point.tooltip }
+            Field(sections, "Plot " .. plot.plotID, detail)
         end
     end
-    Section(lines, "Residents")
+    local residentCard = Section(sections, "Residents", "table", "heart")
+    residentCard.columns, residentCard.rows = { "Resident", "Plot", "Role", "Online" }, {}
     local roster = self.housing.rosters[guid]
-    if type(roster) ~= "table" then lines[#lines + 1] = "Visit the neighborhood bulletin board to load resident details."
+    if type(roster) ~= "table" then Message(sections, "Visit the neighborhood bulletin board to load resident details.")
     else
-        Field(lines, "Residents in the last received roster", #roster)
+        Field(sections, "Residents in the last received roster", #roster)
         for _, resident in ipairs(roster) do
-            Field(lines, Text(resident.residentName), "Plot " .. Text(resident.plotID) .. " - "
+            residentCard.rows[#residentCard.rows + 1] = { cells = { Text(resident.residentName), Text(resident.plotID),
+                EnumName("ResidentType", resident.residentType), Text(resident.isOnline) }, tooltip = Text(resident.residentName)
+                .. "\nPlot: " .. Text(resident.plotID) .. "\nRole: " .. EnumName("ResidentType", resident.residentType)
+                .. "\nOnline: " .. Text(resident.isOnline) .. (Number(resident.subdivision) and "\nSubdivision: " .. Text(resident.subdivision) or "") }
+            Field(sections, Text(resident.residentName), "Plot " .. Text(resident.plotID) .. " - "
                 .. EnumName("ResidentType", resident.residentType) .. " - Online: " .. Text(resident.isOnline))
-            if Number(resident.subdivision) then Field(lines, "Subdivision", resident.subdivision) end
+            if Number(resident.subdivision) then Field(sections, "Subdivision", resident.subdivision) end
         end
     end
-    self:EndeavorLines(lines, guid)
-    return lines
+    Stat(data, "Residents", type(roster) == "table" and #roster or nil, "heart")
+    self:AddEndeavorData(sections, guid)
+    return data
 end
 
 -- Render only the endeavor associated with the current neighborhood, without changing native selection.
-function EH:EndeavorLines(lines, guid)
-    Section(lines, "Neighborhood endeavor")
+function EH:AddEndeavorData(sections, guid)
+    local card = Section(sections, "Neighborhood endeavor", "progress", "achievement")
     local api = C_NeighborhoodInitiative or {}
     local info = Record(self:Call(api.GetNeighborhoodInitiativeInfo))
     if not self:Readable(info.neighborhoodGUID) or info.neighborhoodGUID ~= guid
         or not self:Readable(info.isLoaded) or info.isLoaded ~= true then
-        lines[#lines + 1] = "Endeavor details are not available for this neighborhood yet."
+        Message(sections, "Endeavor details are not available for this neighborhood yet.")
         return
     end
-    Field(lines, "Title", info.title); Field(lines, "Description", info.description)
-    Field(lines, "Progress", Text(info.currentProgress) .. " / " .. Text(info.progressRequired))
-    Field(lines, "Your contribution", info.playerTotalContribution)
-    Field(lines, "Duration (seconds)", info.duration)
-    Field(lines, "House XP available", self:Call(api.GetAvailableHouseXP))
-    Field(lines, "Required player level", self:Call(api.GetRequiredLevel))
+    card.progress = { label = "Community progress", current = info.currentProgress, maximum = info.progressRequired }
+    Field(sections, "Title", info.title); Field(sections, "Description", info.description)
+    Field(sections, "Progress", Text(info.currentProgress) .. " / " .. Text(info.progressRequired))
+    Field(sections, "Your contribution", info.playerTotalContribution)
+    Field(sections, "Duration (seconds)", info.duration)
+    Field(sections, "House XP available", self:Call(api.GetAvailableHouseXP))
+    Field(sections, "Required player level", self:Call(api.GetRequiredLevel))
+    local milestones = Section(sections, "Milestone rewards", "milestones", "achievement")
+    milestones.milestones = {}
     for _, milestone in ipairs(Record(info.milestones)) do
         milestone = Record(milestone)
-        Field(lines, "Milestone " .. Text(milestone.milestoneOrderIndex), milestone.requiredContributionAmount)
+        milestones.milestones[#milestones.milestones + 1] = { label = "Milestone " .. Text(milestone.milestoneOrderIndex),
+            current = info.currentProgress, maximum = milestone.requiredContributionAmount,
+            complete = Number(info.currentProgress) and Number(milestone.requiredContributionAmount) and info.currentProgress >= milestone.requiredContributionAmount,
+            completeText = "Goal reached" }
+        Field(sections, "Milestone " .. Text(milestone.milestoneOrderIndex), milestone.requiredContributionAmount)
         for _, reward in ipairs(Record(milestone.rewards)) do
             reward = Record(reward)
-            Field(lines, "Reward", reward.title); Field(lines, "Reward description", reward.description)
+            Field(sections, "Reward", reward.title); Field(sections, "Reward description", reward.description)
             if Number(reward.decorID) and reward.decorID > 0 then
-                Field(lines, "Decor reward", Text(self:Call(C_HousingDecor and C_HousingDecor.GetDecorName, reward.decorID)) .. " x " .. Text(reward.decorQuantity))
+                Field(sections, "Decor reward", Text(self:Call(C_HousingDecor and C_HousingDecor.GetDecorName, reward.decorID)) .. " x " .. Text(reward.decorQuantity))
             end
-            if Number(reward.favor) and reward.favor > 0 then Field(lines, "House XP reward", reward.favor) end
-            if Number(reward.money) and reward.money > 0 then Field(lines, "Money reward", Money(reward.money)) end
+            if Number(reward.favor) and reward.favor > 0 then Field(sections, "House XP reward", reward.favor) end
+            if Number(reward.money) and reward.money > 0 then Field(sections, "Money reward", Money(reward.money)) end
         end
     end
-    Section(lines, "Endeavor tasks")
+    local tasks = Section(sections, "Endeavor tasks", "table", "quest")
+    tasks.columns, tasks.rows = { "Task", "Status", "Contribution", "Times completed" }, {}
     for _, task in ipairs(Record(info.tasks)) do
         task = Record(task)
-        Field(lines, "Task", task.taskName); Field(lines, "Description", task.description)
-        Field(lines, "Contribution", task.progressContributionAmount); Field(lines, "Times completed", task.timesCompleted)
-        Field(lines, "Completed", task.completed); Field(lines, "In progress", task.inProgress)
-        Field(lines, "Task type", EnumName("NeighborhoodInitiativeTaskType", task.taskType))
-        Field(lines, "Tracked", task.tracked)
-        for _, requirement in ipairs(Record(task.requirementsList)) do Field(lines, "Requirement", EnumName("CriteriaRequirement", requirement)) end
+        local details = #tasks.fields + 1
+        Field(sections, "Task", task.taskName); Field(sections, "Description", task.description)
+        Field(sections, "Contribution", task.progressContributionAmount); Field(sections, "Times completed", task.timesCompleted)
+        Field(sections, "Completed", task.completed); Field(sections, "In progress", task.inProgress)
+        Field(sections, "Task type", EnumName("NeighborhoodInitiativeTaskType", task.taskType))
+        Field(sections, "Tracked", task.tracked)
+        for _, requirement in ipairs(Record(task.requirementsList)) do Field(sections, "Requirement", EnumName("CriteriaRequirement", requirement)) end
+        local tooltip = {}
+        for i = details, #tasks.fields do tooltip[#tooltip + 1] = tasks.fields[i].label .. ": " .. tasks.fields[i].value end
+        local status = "Unknown"
+        if self:Readable(task.completed) and self:Readable(task.inProgress)
+            and type(task.completed) == "boolean" and type(task.inProgress) == "boolean" then
+            status = task.completed and "Complete" or (task.inProgress and "In progress" or "Available")
+        end
+        tasks.rows[#tasks.rows + 1] = { cells = { Text(task.taskName), status,
+            Text(task.progressContributionAmount), Text(task.timesCompleted) }, tooltip = table.concat(tooltip, "\n") }
     end
 end
 
 -- Display all native budget types as spent/max pairs, without assuming missing data means zero.
-local function Budgets(lines, title, spent, maximum)
-    Section(lines, title)
+local function Budgets(sections, title, spent, maximum)
+    local card = Section(sections, title, "budgets", "collection")
+    card.meters = {}
     local keys = {}
     for kind in pairs(Record(maximum)) do if Number(kind) then keys[#keys + 1] = kind end end
     table.sort(keys)
-    if #keys == 0 then lines[#lines + 1] = "Budget information is not available yet." end
+    if #keys == 0 then Message(sections, "Budget information is not available yet.") end
     for _, kind in ipairs(keys) do
-        Field(lines, EnumName("HousingBudgetType", kind), Text(Record(spent)[kind]) .. " / " .. Text(maximum[kind]))
+        card.meters[#card.meters + 1] = { label = EnumName("HousingBudgetType", kind), current = Record(spent)[kind], maximum = maximum[kind] }
+        Field(sections, EnumName("HousingBudgetType", kind), Text(Record(spent)[kind]) .. " / " .. Text(maximum[kind]))
     end
 end
 
@@ -339,101 +403,83 @@ local function Access(flags, prefix)
 end
 
 -- Show the selected owned house, and scope live layout/decor data to that exact home.
-function EH:HouseLines()
-    local lines, api = {}, C_Housing or {}
+function EH:HouseData()
+    local sections, api = {}, C_Housing or {}
+    local data = { kind = "house", title = "Your house", icon = "housing", sections = sections, stats = {} }
     local info = self:SelectedHouse()
-    if not info then return { self.housing.housesLoaded and "No owned houses were reported for your account." or "Loading your owned houses..." } end
-    Section(lines, "Your house")
-    Field(lines, "Name", info.houseName); Field(lines, "Owner", info.ownerName)
-    Field(lines, "Neighborhood", info.neighborhoodName); Field(lines, "Plot", info.plotID)
-    Field(lines, "Plot cost", Money(info.plotCost)); Field(lines, "Plot reserved", info.plotReserved)
-    if Number(info.moveOutTime) and info.moveOutTime > 0 then Field(lines, "Move-out time", self:Call(date, "%Y-%m-%d %H:%M", info.moveOutTime)) end
-    Field(lines, "House ID", info.houseGUID); Field(lines, "Neighborhood ID", info.neighborhoodGUID)
-    if type(info.neighborhoodGUID) == "string" then Field(lines, "Map ID", self:Call(api.GetUIMapIDForNeighborhood, info.neighborhoodGUID)) end
-    Section(lines, "House level and progress")
+    if not info then
+        Section(sections, "Your home", nil, "housing")
+        Message(sections, self.housing.housesLoaded and "No owned houses were reported for your account." or "Loading your owned houses...")
+        return data
+    end
+    data.title = Text(info.houseName)
+    data.subtitle = Text(info.neighborhoodName) .. "  /  Plot " .. Text(info.plotID)
+    Section(sections, "Your house")
+    Field(sections, "Name", info.houseName); Field(sections, "Owner", info.ownerName)
+    Field(sections, "Neighborhood", info.neighborhoodName); Field(sections, "Plot", info.plotID)
+    Field(sections, "Plot cost", Money(info.plotCost)); Field(sections, "Plot reserved", info.plotReserved)
+    if Number(info.moveOutTime) and info.moveOutTime > 0 then Field(sections, "Move-out time", self:Call(date, "%Y-%m-%d %H:%M", info.moveOutTime)) end
+    Identifier(data, "House ID", info.houseGUID); Identifier(data, "Neighborhood ID", info.neighborhoodGUID)
+    if type(info.neighborhoodGUID) == "string" then Identifier(data, "Map ID", self:Call(api.GetUIMapIDForNeighborhood, info.neighborhoodGUID)) end
+    local progress = Section(sections, "House level and progress", "progress", "achievement")
     local favor = Record(self.housing.favor[info.houseGUID])
-    Field(lines, "House level", favor.houseLevel)
-    Field(lines, "House XP", favor.houseFavor)
+    Field(sections, "House level", favor.houseLevel)
+    Field(sections, "House XP", favor.houseFavor)
     local maximum = self:Call(api.GetMaxHouseLevel)
     local atMaximum = Number(maximum) and Number(favor.houseLevel) and favor.houseLevel >= maximum
     local required = not atMaximum and Number(favor.houseLevel) and self:Call(api.GetHouseLevelFavorForLevel, favor.houseLevel + 1) or nil
-    Field(lines, "Maximum house level", maximum)
-    if atMaximum then lines[#lines + 1] = "Maximum house level reached."
-    else Field(lines, "XP required for the next level", required) end
-    if Number(required) and Number(favor.houseFavor) then Field(lines, "XP still needed", math.max(0, required - favor.houseFavor)) end
+    Field(sections, "Maximum house level", maximum)
+    local baseline = Number(favor.houseLevel) and self:Call(api.GetHouseLevelFavorForLevel, favor.houseLevel) or nil
+    if Number(favor.houseLevel) and favor.houseLevel == 0 then baseline = 0 end
+    progress.progress = { label = "Progress to next level", current = Number(baseline) and Number(favor.houseFavor) and favor.houseFavor - baseline or nil,
+        maximum = Number(baseline) and Number(required) and required - baseline or nil, complete = atMaximum, completeText = "Maximum level" }
+    Stat(data, "House level", favor.houseLevel, "achievement")
+    Stat(data, "XP still needed", Number(required) and Number(favor.houseFavor) and math.max(0, required - favor.houseFavor) or (atMaximum and 0 or nil), "quest")
+    if atMaximum then Message(sections, "Maximum house level reached.")
+    else Field(sections, "XP required for the next level", required) end
+    if Number(required) and Number(favor.houseFavor) then Field(sections, "XP still needed", math.max(0, required - favor.houseFavor)) end
     if not atMaximum and Number(favor.houseLevel) then
+        Section(sections, "Next level unlocks", nil, "book")
         for _, reward in ipairs(Record(self.housing.rewards[favor.houseLevel + 1])) do
             reward = Record(reward)
             local name = reward.objectName or reward.tooltipText or EnumName("HouseLevelRewardValueType", reward.valueType)
             if Number(reward.newValue) then name = Text(name) .. " - " .. Text(reward.oldValue) .. " -> " .. Text(reward.newValue) end
-            Field(lines, "Next level reward", name)
+            Field(sections, "Next level reward", name)
         end
+        if #sections[#sections].fields == 0 then Message(sections, "Unlock details are not available yet.") end
     end
     local current = Record(self:Call(api.GetCurrentHouseInfo))
     if not self:Readable(current.houseGUID) or current.houseGUID ~= info.houseGUID or self:Call(api.IsInsideOwnedHouseOrPlot) ~= true then
-        Section(lines, "Live house details")
-        lines[#lines + 1] = "Enter this house or its plot to see current decor, room, exterior, and budget details."
-        return lines
+        Section(sections, "Live house details")
+        Message(sections, "Enter this house or its plot to see current decor, room, exterior, and budget details.")
+        Stat(data, "Placed decor", nil, "collection"); Stat(data, "Rooms", nil, "housing")
+        return data
     end
-    Section(lines, "Live house details")
-    Field(lines, "Inside your house", self:Call(api.IsInsideOwnedHouse))
-    Field(lines, "On your plot", self:Call(api.IsInsideOwnedPlot))
-    Field(lines, "Placed decor in the current area", self:Call(C_HousingDecor and C_HousingDecor.GetNumDecorPlaced))
-    Field(lines, "Active rooms", self:Call(C_HousingLayout and C_HousingLayout.GetNumActiveRooms))
-    Field(lines, "Lowest occupied floor", self:Call(C_HousingLayout and C_HousingLayout.GetLowestOccupiedFloorIndex))
-    Field(lines, "Highest occupied floor", self:Call(C_HousingLayout and C_HousingLayout.GetHighestOccupiedFloorIndex))
+    Section(sections, "Live house details")
+    Field(sections, "Inside your house", self:Call(api.IsInsideOwnedHouse))
+    Field(sections, "On your plot", self:Call(api.IsInsideOwnedPlot))
+    local decor = self:Call(C_HousingDecor and C_HousingDecor.GetNumDecorPlaced)
+    local rooms = self:Call(C_HousingLayout and C_HousingLayout.GetNumActiveRooms)
+    Field(sections, "Placed decor in the current area", decor); Field(sections, "Active rooms", rooms)
+    Stat(data, "Placed decor", decor, "collection"); Stat(data, "Rooms", rooms, "housing")
+    Field(sections, "Lowest occupied floor", self:Call(C_HousingLayout and C_HousingLayout.GetLowestOccupiedFloorIndex))
+    Field(sections, "Highest occupied floor", self:Call(C_HousingLayout and C_HousingLayout.GetHighestOccupiedFloorIndex))
     local _, exteriorName = self:Call(C_HouseExterior and C_HouseExterior.GetCurrentHouseExteriorType)
-    Field(lines, "Exterior style", exteriorName)
-    Field(lines, "Exterior size", EnumName("HousingFixtureSize", self:Call(C_HouseExterior and C_HouseExterior.GetCurrentHouseExteriorSize)))
-    Field(lines, "Refund amount", Money(self:Call(api.GetCurrentHouseRefundAmount)))
+    Field(sections, "Exterior style", exteriorName)
+    Field(sections, "Exterior size", EnumName("HousingFixtureSize", self:Call(C_HouseExterior and C_HouseExterior.GetCurrentHouseExteriorSize)))
+    Field(sections, "Refund amount", Money(self:Call(api.GetCurrentHouseRefundAmount)))
+    Section(sections, "Visitors and sharing", nil, "heart")
     local access = self:Call(api.GetHousingAccessFlags)
-    Field(lines, "House visitors", Access(access, "HouseAccess"))
-    Field(lines, "Plot visitors", Access(access, "PlotAccess"))
-    Field(lines, "Blueprint export permission", Access(access, "BlueprintExport"))
+    Field(sections, "House visitors", Access(access, "HouseAccess"))
+    Field(sections, "Plot visitors", Access(access, "PlotAccess"))
+    Field(sections, "Blueprint export permission", Access(access, "BlueprintExport"))
     local interiorMax, exteriorMax = self:Call(C_HousingDecor and C_HousingDecor.GetAllMaxPlacementBudgets)
     local interiorSpent, exteriorSpent = self:Call(C_HousingDecor and C_HousingDecor.GetAllSpentPlacementBudgets)
-    Budgets(lines, "Interior budgets", interiorSpent, interiorMax); Budgets(lines, "Exterior budgets", exteriorSpent, exteriorMax)
-    Field(lines, "Room placement budget", Text(self:Call(C_HousingLayout and C_HousingLayout.GetSpentPlacementBudget)) .. " / "
-        .. Text(self:Call(C_HousingLayout and C_HousingLayout.GetRoomPlacementBudget)))
-    return lines
-end
-
--- Create two native ElvUI-styled scrolling pages with a local owned-house selector.
-function EH:CreateHousingPanels()
-    self.infoPages = {}
-    for _, key in ipairs({ "neighborhood", "house" }) do
-        local panel = CreateFrame("Frame", nil, self.frame, "BackdropTemplate")
-        panel:Hide(); self:Skin(panel, true)
-        panel:SetPoint("TOPLEFT", 12, -82); panel:SetPoint("BOTTOMRIGHT", -12, 38)
-        local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
-        scroll:SetPoint("TOPLEFT", 12, key == "house" and -50 or -12); scroll:SetPoint("BOTTOMRIGHT", -30, 12)
-        local content = CreateFrame("Frame", nil, scroll); content:SetSize(600, 1); scroll:SetScrollChild(content)
-        local text = self:Label(content, ""); text:SetPoint("TOPLEFT"); text:SetJustifyH("LEFT"); text:SetWordWrap(true)
-        self.infoPages[key] = { panel = panel, scroll = scroll, content = content, text = text }
-        -- Scroll width and text height follow native font and window geometry changes.
-        scroll:HookScript("OnSizeChanged", function() self:RenderHousingInfo() end)
-    end
-    self.houseSelector = self:Button(self.infoPages.house.panel, "Choose house", 320, function(button)
-        self:ChoiceMenu(button, self:HouseChoices(), function() local info = self:SelectedHouse(); return info and info.houseGUID end,
-            function(guid) self.selectedHouseGUID = guid; self:RefreshHousingInfo() end)
-    end, "housing")
-    self.houseSelector:SetPoint("TOPLEFT", 12, -12)
-end
-
--- Reuse the existing page controls and reflow their text without any server request during rendering.
-function EH:RenderHousingInfo()
-    if not self.infoPages then return end
-    for key, page in pairs(self.infoPages) do
-        if self.view == key then
-            local lines = key == "house" and self:HouseLines() or self:NeighborhoodLines()
-            local width = math.max(1, page.scroll:GetWidth() - 10)
-            page.content:SetWidth(width); page.text:SetWidth(width)
-            page.text:SetText(table.concat(lines, "\n"))
-            page.content:SetHeight(math.max(1, page.text:GetStringHeight() + 12))
-        end
-    end
-    if self.houseSelector then
-        local info = self:SelectedHouse()
-        self.houseSelector.text:SetText(info and (Text(info.houseName or info.neighborhoodName) .. " - Plot " .. Text(info.plotID)) or "Choose house")
-    end
+    Budgets(sections, "Interior budgets", interiorSpent, interiorMax); Budgets(sections, "Exterior budgets", exteriorSpent, exteriorMax)
+    local spent = self:Call(C_HousingLayout and C_HousingLayout.GetSpentPlacementBudget)
+    local limit = self:Call(C_HousingLayout and C_HousingLayout.GetRoomPlacementBudget)
+    local roomCard = Section(sections, "Room capacity", "budgets", "housing")
+    roomCard.meters = { { label = "Room placement budget", current = spent, maximum = limit } }
+    Field(sections, "Room placement budget", Text(spent) .. " / " .. Text(limit))
+    return data
 end

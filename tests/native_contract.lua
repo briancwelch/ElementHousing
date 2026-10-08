@@ -143,7 +143,18 @@ methods.SetScrollChild = function(self, child) self.scrollChild = child end
 methods.SetFocus = function(self) self.focus = true end
 methods.ClearFocus = function(self) self.focus = false end
 methods.HighlightText = function(self) self.highlighted = true end
-methods.GetStringHeight = function(self) return math.ceil(#(self.textValue or "") / 48) * 14 + 14 end
+methods.GetStringHeight = function(self)
+    local size = self.state_SetFont and self.state_SetFont[2] or 13
+    local width = self.width or 800
+    local height = 0
+    for line in ((self.textValue or "") .. "\n"):gmatch("(.-)\n") do
+        height = height + math.max(1, math.ceil(#line * size * .58 / math.max(1, width))) * (size + 2)
+    end
+    return height
+end
+methods.GetVerticalScroll = function(self) return self.verticalScroll or 0 end
+methods.SetVerticalScroll = function(self, value) self.verticalScroll = value end
+methods.ClearLines = function(self) self.tooltipLines = {} end
 methods.SetMinMaxValues = function(self, min, max) self.min, self.max = min, max end
 methods.SetValue = function(self, value) self.value = value; if self.scripts.OnValueChanged then self.scripts.OnValueChanged(self, value) end end
 methods.StartMoving = function(self) self.moving = true end
@@ -157,7 +168,7 @@ end
 methods.GetActorByTag = function(self, tag) assert(tag == "decor", "Wrong native actor tag"); return self.actor end
 methods.SetModelScene = function(self, scene) assert(scene.kind == "ModelScene"); self.scene = scene end
 methods.SetOwner = function() end
-methods.AddLine = function() end
+methods.AddLine = function(self, value) self.tooltipLines = self.tooltipLines or {}; self.tooltipLines[#self.tooltipLines + 1] = value end
 methods.SetItemByID = function(_, id) assert(type(id) == "number") end
 -- Enforce the model template names used by the current native housing preview.
 CreateFrame = function(kind, name, parent, template)

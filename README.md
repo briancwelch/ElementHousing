@@ -1,4 +1,4 @@
-# ElementHousing 2.0.5
+# ElementHousing 2.0.6
 
 A native Midnight 12.1.0 housing catalog, blueprint library, and neighborhood/house information window. **ElvUI is required.** nMediaTag (`ElvUI_mMediaTag`) and WindTools (`ElvUI_WindTools`) are optional. The standard LibStub, CallbackHandler, LibDataBroker, and LibDBIcon launcher libraries are bundled.
 
@@ -51,9 +51,11 @@ The inspector shows availability progress, required/missing quantities for decor
 
 ## Neighborhood and House
 
-The **Neighborhood** tab (or `/eh neighborhood`) shows your current neighborhood's name, location, type, owner, your owner/manager role, faction compatibility, available plots, occupancy, plot owners, known prices, and map coordinates. It also shows the current neighborhood's available endeavor progress, contribution, tasks, milestones, and rewards. Resident details appear after Blizzard supplies the roster while you visit the neighborhood bulletin board. Traveling changes the displayed neighborhood; unavailable details remain unknown.
+Both tabs use responsive dashboards with a branded location header, summary tiles, native progress graphs, and grouped detail cards. Cards sit side by side on wide windows and stack on smaller windows; text reflows with ElvUI's configured font size. The full page scrolls, and **Identifiers > Show** reveals technical IDs when needed.
 
-The **House** tab (or `/eh house`) lists your account's owned houses and lets you choose one without changing Blizzard's tracked house. It defaults to the owned home you are visiting, or the first reported home. It shows identity, owner, neighborhood, plot, known cost/reservation details, house level, XP, next-level progress, and received unlock rewards. While at that selected house or plot, it also shows current-area decor counts, rooms/floors, exterior style/size, refund amount, visitor/blueprint permissions, and native interior/exterior/room placement budgets.
+The **Neighborhood** tab (or `/eh neighborhood`) shows your current neighborhood's name, location, type, owner, your owner/manager role, faction compatibility, available plots, occupancy, plot owners, known prices, and map coordinates. Its occupancy meter and plot-position chart use Blizzard's reported data; hover a marker for its plot, owner, and price. Full plot, resident, and endeavor task directories remain available below the overview, with wrapping rows and hover details. Endeavor and milestone meters show available progress alongside contribution and rewards. Resident details appear after Blizzard supplies the roster while you visit the neighborhood bulletin board. Traveling changes the displayed neighborhood; unavailable details remain unknown.
+
+The **House** tab (or `/eh house`) lists your account's owned houses and lets you choose one without changing Blizzard's tracked house. It defaults to the owned home you are visiting, or the first reported home. Summary tiles show level, XP still needed, decor, and rooms. The XP graph measures progress within the current level, and the details retain identity, owner, neighborhood, plot, known cost/reservation information, and received unlock rewards. While at that selected house or plot, separate interior, exterior, and room budget meters show actual usage/capacity. The page also shows current-area decor counts, rooms/floors, exterior style/size, refund amount, and visitor/blueprint permissions.
 
 Both pages use read-only housing getters and documented asynchronous data requests. Information follows housing notifications and the Refresh button; requests defer during combat. Visiting another player's house never treats it as yours. Housing snapshots are session-only, and these pages follow the same native ElvUI appearance settings as the catalog.
 
@@ -67,11 +69,13 @@ Pending, unknown, invalid, or non-vendor destinations leave existing map pins in
 
 ## Development and verification
 
-Version: **2.0.5**. Interface target: **120100**. Account-wide saved variable: `ElementHousingDB`. Existing compatible root settings/favorites are preserved; the imported suite is not loaded.
+Version: **2.0.6**. Interface target: **120100**. Account-wide saved variable: `ElementHousingDB`. Existing compatible root settings/favorites are preserved; the imported suite is not loaded.
 
 Run `tests/run.py` with Python and `lupa` providing Lua 5.1. The checks compile every Lua file, verify TOC paths, exercise the actual bundled launcher libraries against explicit native frame contracts, test filter/zone/waypoint/blueprint behavior, cover the profession shortcut across character skill combinations, PvP evidence/presets, expansion/currency combinations, merchant observations, and asynchronous housing data/context changes. They validate the options against the installed ElvUI AceConfig registry when available. The integration matrix covers ElvUI alone, each optional plugin, and both plugins together using installed ElvUI font/status helpers, its actual sidebar builder/core-page snapshot, and AceConfig sorting. It verifies native appearance changes on existing controls, legacy override retirement, dependency metadata, and all 17 packaged textures.
 
 These are offline checks. Verify in-game after `/reload`: ElvUI-only startup and bundled icons, plugin position/title/tree, font/outline/scale/texture/color changes through ElvUI, optional WindTools minimap collection and shadows, catalog loading, optional nMediaTag icon rendering, the My professions shortcut, PvP filtering, Neighborhood/House replies while traveling or choosing houses, bulletin-board residents, expansion/currency selectors, merchant observations and vendor waypoints, interactive 3D camera controls, resize/scroll behavior at your UI scale, current-zone source completeness, and live blueprint collection/import/export replies.
+
+Dashboard checks additionally cover graph values, pooled controls, expandable IDs, marker tooltips, unknown/over-budget states, and layouts at three widths and three ElvUI font sizes. `tools/render_dashboard.py --output-dir <directory>` exports SVG layout previews from the actual controls using illustrative data and approximate font metrics; these previews are separate from in-game screenshots.
 
 Appearance references: [ElvUI templates and font registration](https://github.com/tukui-org/ElvUI/blob/main/ElvUI/Game/Shared/General/Toolkit.lua), [native media update registries](https://github.com/tukui-org/ElvUI/blob/main/ElvUI/Game/Shared/General/Core.lua), and [UI scaling](https://github.com/tukui-org/ElvUI/blob/main/ElvUI/Game/Shared/General/PixelPerfect.lua).
 

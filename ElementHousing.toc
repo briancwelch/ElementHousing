@@ -2,7 +2,7 @@
 ## Title: ElementHousing
 ## Notes: An ElvUI housing catalog, acquisition browser, blueprint library, and neighborhood/house information window.
 ## Author: ElementHousing
-## Version: 2.0.5
+## Version: 2.0.6
 ## SavedVariables: ElementHousingDB
 ## Dependencies: ElvUI
 ## OptionalDeps: ElvUI_WindTools, ElvUI_mMediaTag
@@ -19,5 +19,6 @@ Acquisition.lua
 Catalog.lua
 Blueprints.lua
 Housing.lua
+HousingUI.lua
 UI.lua
 Options.lua
