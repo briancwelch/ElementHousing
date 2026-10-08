@@ -63,7 +63,7 @@ acquisition = LuaRuntime(unpack_returned_tuples=True)
 load_addon(acquisition)
 acquisition.execute((ROOT / "tests" / "acquisition.lua").read_text(encoding="utf-8"))
 print(f"Vendor routes and acquisition filters: {acquisition.globals().checks} checks passed.")
-for feature in ("pvp", "housing", "dashboard", "library", "decor_tags", "neighborhood_map", "projects"):
+for feature in ("pvp", "housing", "dashboard", "library", "decor_tags", "neighborhood_map", "projects", "merchant"):
     feature_runtime = LuaRuntime(unpack_returned_tuples=True)
     load_addon(feature_runtime)
     if feature == "neighborhood_map":

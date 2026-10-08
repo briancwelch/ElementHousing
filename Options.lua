@@ -74,10 +74,12 @@ function EH:BuildOptions()
         blueprintMissingOnly = self:Setting("blueprintMissingOnly", "Show missing / invalid requirements only", "toggle", 2),
         open = { type = "execute", name = "Open blueprint library", order = 3, func = function() self:Show("blueprints") end },
     } }
-    options.args.waypoints = { type = "group", name = self:IconLabel("teleports", "Vendor waypoints"), order = 40, args = {
+    options.args.waypoints = { type = "group", name = self:IconLabel("teleports", "Vendors"), order = 40, args = {
         help = { type = "description", order = 0, name = "Select a vendor item and use Vendor waypoint, or right-click its catalog row. Destinations use Blizzard's tracking, recorded merchant visits, then the bundled known-vendor library. Known library vendors work without visiting first. Unlisted vendors can still be learned by opening their shop. Unknown locations preserve your existing pin." },
         superTrack = self:Setting("superTrack", "Super-track vendor waypoints", "toggle", 1),
         waypointConfirm = self:Setting("waypointConfirm", "Confirm replacing an existing map waypoint", "toggle", 2),
+        merchantOwnedChecks = self:Setting("merchantOwnedChecks", "Show owned decor checkmarks", "toggle", 3,
+            "Show a green check on vendor decor icons when your account owns a copy in storage, placed in a house, or awaiting redemption. Enabled by default. Supports WindTools' expanded merchant pages."),
     } }
     options.args.launcher = { type = "group", name = self:IconLabel("menu", "Launcher and support"), order = 50, args = {
         minimap = self:Setting("minimap", "Show minimap icon", "toggle", 1,

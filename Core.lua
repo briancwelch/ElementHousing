@@ -1,6 +1,6 @@
 local addonName, EH = ...
 _G.ElementHousing = EH
-EH.name, EH.version = addonName, "2.0.8"
+EH.name, EH.version = addonName, "2.0.9"
 EH.entries, EH.results, EH.byID = {}, {}, {}
 EH.defaults = {
     schema = 2,
@@ -11,7 +11,7 @@ EH.defaults = {
         showTooltips = true, showSource = true, showCounts = true,
         rememberFilters = true, professionMissingOnly = true, includeUnknownProfession = true,
         includeUnknownZone = false, includeSubzones = true, autoZone = true,
-        superTrack = true, waypointConfirm = true, showAutosaves = false,
+        superTrack = true, waypointConfirm = true, merchantOwnedChecks = true, showAutosaves = false,
         blueprintMissingOnly = false, batchSize = 24, minimap = true,
     },
     filters = { ownership = "all", source = "all", zone = "all", profession = "all",
@@ -76,6 +76,7 @@ end
 -- Apply a setting immediately to addon-owned controls.
 function EH:SetSetting(key, value)
     self.db.settings[key] = value
+    if key == "merchantOwnedChecks" then self:HookMerchantChecks(); self:UpdateMerchantChecks() end
     if key == "minimap" and self.dbicon then
         self.db.minimap.hide = not value
         if value then self.dbicon:Show(self.name) else self.dbicon:Hide(self.name) end
@@ -137,6 +138,7 @@ function EH:Initialize()
     self:RegisterMedia()
     self:RegisterOptions()
     self:RegisterLauncher()
+    self:HookMerchantChecks()
     SLASH_ELEMENTHOUSING1, SLASH_ELEMENTHOUSING2 = "/eh", "/elementhousing"
     -- Keep slash navigation available even when the minimap collector hides an icon.
     SlashCmdList.ELEMENTHOUSING = function(text)
@@ -160,6 +162,8 @@ EH.events = CreateFrame("Frame")
 EH.events:SetScript("OnEvent", function(_, event, ...)
     if event == "PLAYER_LOGIN" then EH:Initialize(); return end
     if not EH.initialized then return end
+    EH:MerchantCheckEvent(event)
+    if event == "ADDON_LOADED" then return end
     if EH.housingEvents and EH.housingEvents[event] then EH:HousingEvent(event, ...); return end
     if event == "PLAYER_REGEN_ENABLED" and EH.housingDeferred then
         EH.housingDeferred = nil; EH:RefreshHousingInfo()
@@ -195,7 +199,7 @@ EH.events:SetScript("OnEvent", function(_, event, ...)
     end
     EH:ScheduleRefresh()
 end)
-for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_REGEN_ENABLED", "UI_SCALE_CHANGED", "DISPLAY_SIZE_CHANGED", "SKILL_LINES_CHANGED",
+for _, event in ipairs({ "PLAYER_LOGIN", "ADDON_LOADED", "PLAYER_REGEN_ENABLED", "UI_SCALE_CHANGED", "DISPLAY_SIZE_CHANGED", "SKILL_LINES_CHANGED",
     "TRADE_SKILL_LIST_UPDATE", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED",
     "MERCHANT_SHOW", "MERCHANT_UPDATE", "MERCHANT_CLOSED", "GET_ITEM_INFO_RECEIVED",
     "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "CURRENCY_DISPLAY_UPDATE",

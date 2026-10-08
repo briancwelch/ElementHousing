@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.9 - 2026-10-08
+
+- Add green ownership checkmarks to vendor decor icons, enabled by default. Toggle them immediately in ElvUI > ElementHousing > Vendors > Show owned decor checkmarks.
+- Read current account ownership from Blizzard's housing catalog, including stored, placed, and unredeemed copies. Work without opening ElementHousing's window; keep unowned, non-decor, pending, and restricted items unmarked.
+- Follow native merchant button IDs across pages and class filters, including WindTools' expanded merchant layouts. Refresh after purchases and housing ownership notifications, reuse overlay textures, and clear marks on empty slots, buyback, closing the vendor, or disabling the option. Preserve existing icon tints and purchase handlers.
+- Add offline checks for standard and expanded vendor pages, filtered/recycled slots, ownership counts, optional APIs, settings migration, immediate toggling, delayed updates, and native hook behavior. In-game appearance still requires client verification.
+
 ## 2.0.8 - 2026-10-08
 
 - Add a Collections workspace with 42 community collection/theme checklists, native ownership checkmarks and progress, search, missing-only views, catalog inspection, and an action to plan known missing craftable decorations. Keep unavailable catalog items separate from missing decor.

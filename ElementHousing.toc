@@ -2,7 +2,7 @@
 ## Title: ElementHousing
 ## Notes: An ElvUI housing catalog, themed collections and crafting planner, blueprint library, and neighborhood/house information window.
 ## Author: ElementHousing
-## Version: 2.0.8
+## Version: 2.0.9
 ## SavedVariables: ElementHousingDB
 ## Dependencies: ElvUI
 ## OptionalDeps: ElvUI_WindTools, ElvUI_mMediaTag, Auctionator, !KalielsTracker
@@ -20,6 +20,7 @@ Data\Collections.lua
 Data\Recipes.lua
 Filters.lua
 Acquisition.lua
+Merchant.lua
 VendorLibrary.lua
 DecorTags.lua
 Catalog.lua

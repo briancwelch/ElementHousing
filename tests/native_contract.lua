@@ -93,11 +93,18 @@ methods.StyleButton = function(self)
     self:SetHighlightTexture(ElvUI[1].media.blankTex)
     self:GetHighlightTexture():SetVertexColor(1, 1, 1, 0.3)
 end
--- Preserve native call ordering when installing a secure post-hook on an addon method.
+-- Preserve both native secure post-hook signatures and their original return values.
 hooksecurefunc = function(object, name, callback)
+    if type(object) == "string" then object, name, callback = _G, object, name end
     local original = object[name]
-    object[name] = function(...) original(...); callback(...) end
+    assert(type(original) == "function" and type(callback) == "function", "Secure hooks require an existing function")
+    object[name] = function(...)
+        local result = { original(...) }; callback(...); return unpack(result)
+    end
 end
+-- Merchant item buttons use their native IDs to represent the current filtered page.
+methods.SetID = function(self, value) self.id = value end
+methods.GetID = function(self) return self.id or 0 end
 methods.SetTexture = function(self, value) assert(value == nil or type(value) == "string" or type(value) == "number"); self.texture = value end
 methods.SetAtlas = function(self, value) assert(type(value) == "string"); self.atlas = value end
 methods.GetVertexColor = function() return 1, 1, 1, 1 end

@@ -1,4 +1,4 @@
-# ElementHousing 2.0.8
+# ElementHousing 2.0.9
 
 A native Midnight 12.1.0 housing catalog, collection/crafting planner, blueprint library, and neighborhood/house information window. **ElvUI is required.** nMediaTag (`ElvUI_mMediaTag`), WindTools (`ElvUI_WindTools`), Auctionator, and Kaliel's Tracker are optional. The standard LibStub, CallbackHandler, LibDataBroker, and LibDBIcon launcher libraries are bundled.
 
@@ -77,7 +77,9 @@ The **House** tab (or `/eh house`) lists your account's owned houses and lets yo
 
 Both pages use read-only housing getters and documented asynchronous data requests. Information follows housing notifications and the Refresh button; requests defer during combat. Visiting another player's house never treats it as yours. Housing snapshots are session-only, and these pages follow the same native ElvUI appearance settings as the catalog.
 
-## Vendor waypoints
+## Vendors
+
+Vendor decor icons show a **green checkmark** when your account owns a stored, placed, or unredeemed copy. This is enabled by default and works without opening the housing window, including WindTools' expanded vendor pages. Change it immediately in **ElvUI > ElementHousing > Vendors > Show owned decor checkmarks**. Marks follow vendor pages, class filters, purchases, and housing ownership updates; unavailable ownership data stays unmarked.
 
 Waypoints use Blizzard's content-tracking coordinates or a verified merchant visit for the selected decor, then fall back to **243 bundled known vendor positions**. Known vendors such as Dethelin work before a shop visit when Blizzard supplies the vendor identity but no destination. A missing preferred-map result also queries the player's map and known source maps. Verified visits on the current map take priority, choosing the nearest visited seller unless a specific vendor is selected. Visit locations are approximate because they record the player's position while the shop is open.
 
@@ -95,7 +97,7 @@ Toggle **Vendors** for bundled neighborhood vendor positions. Vendors sharing a 
 
 ## Development and verification
 
-Version: **2.0.8**. Interface target: **120100**. Account-wide saved variable: `ElementHousingDB`. Existing compatible root settings/favorites are preserved; the imported suite is not loaded.
+Version: **2.0.9**. Interface target: **120100**. Account-wide saved variable: `ElementHousingDB`. Existing compatible root settings/favorites are preserved; the imported suite is not loaded.
 
 Run `tests/run.py` with Python and `lupa` providing Lua 5.1. The checks compile every Lua file, verify TOC paths, exercise the actual bundled launcher libraries against explicit native frame contracts, test filter/zone/waypoint/blueprint behavior, cover the profession shortcut across character skill combinations, PvP evidence/presets, expansion/currency combinations, merchant observations, and asynchronous housing data/context changes. They validate the options against the installed ElvUI AceConfig registry when available. The integration matrix covers ElvUI alone, each optional plugin, and both plugins together using installed ElvUI font/status helpers, its actual sidebar builder/core-page snapshot, and AceConfig sorting. It verifies native appearance changes on existing controls, legacy override retirement, dependency metadata, and all 17 packaged textures.
 
@@ -111,4 +113,4 @@ Appearance references: [ElvUI templates and font registration](https://github.co
 
 Housing information references: [native house API definitions](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingUIDocumentation.lua), [neighborhood API definitions](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingNeighborhoodUIDocumentation.lua), [endeavors](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/NeighborhoodInitiativeDocumentation.lua), and [Blizzard's visitor permissions](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_HousingHouseSettings/Blizzard_HousingHouseSettings.lua).
 
-API references: [Blizzard-generated catalog/searcher definitions](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingCatalogSearcherAPIDocumentation.lua), [content tracking](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/ContentTrackingDocumentation.lua), [blueprints](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingBlueprintUIDocumentation.lua), and [native model previews](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_HousingModelPreview/Blizzard_HousingModelPreview.lua).
+API references: [Blizzard-generated catalog/searcher definitions](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingCatalogSearcherAPIDocumentation.lua), [catalog ownership](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingCatalogUIDocumentation.lua), [merchant rendering and button IDs](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_UIPanels_Game/Mainline/MerchantFrame.lua), [content tracking](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/ContentTrackingDocumentation.lua), [blueprints](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/HousingBlueprintUIDocumentation.lua), and [native model previews](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_HousingModelPreview/Blizzard_HousingModelPreview.lua).
