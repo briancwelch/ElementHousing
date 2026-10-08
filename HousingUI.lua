@@ -140,44 +140,17 @@ local function Directory(card, section, y, width)
     return y
 end
 
--- Draw a coordinate chart from Blizzard's actual plot positions, with an honest occupancy meter.
+-- Pair an honest occupancy meter with the interactive native neighborhood map.
 local function PlotChart(card, section, y, width)
     local counts = section.counts
     y = y + Label(card, "Occupied / known plots", padding, y, width, true) + 4
     y = Meter(card, { current = counts.total > 0 and counts.occupied or nil, maximum = counts.total > 0 and counts.total or nil }, y, width)
     y = y + Label(card, counts.total > 0 and string.format("Occupied %d   |   Unowned %d   |   Unknown %d", counts.occupied, counts.vacant, counts.unknown)
         or "Occupancy details are not available yet.", padding, y, width) + 6
-    local chartHeight = math.max(180, math.min(260, width * .6))
-    for index = 1, 10 do
-        local line = card.grid[index]
-        if not line then line = card:CreateTexture(nil, "BACKGROUND"); line:SetTexture(E.media.blankTex); card.grid[index] = line end
-        line:SetVertexColor(unpack(E.media.bordercolor)); line:SetAlpha(.35)
-        local vertical = index <= 5
-        local fraction = ((index - 1) % 5) / 4
-        Place(line, card, padding + (vertical and width * fraction or 0), y + (vertical and 0 or chartHeight * fraction), vertical and 1 or width, vertical and chartHeight or 1)
-    end
-    local visible = 0
-    for _, plot in ipairs(section.plots) do
-        if Number(plot.x) and Number(plot.y) then
-            visible = visible + 1
-            local point = card.markers[visible]
-            if not point then
-                point = CreateFrame("Button", nil, card, "BackdropTemplate")
-                EH:Skin(point)
-                point.fill = point:CreateTexture(nil, "ARTWORK"); point.fill:SetAllPoints(); point.fill:SetTexture(E.media.blankTex)
-                point:SetScript("OnEnter", Tooltip)
-                point:SetScript("OnLeave", function() GameTooltip:Hide() end)
-                card.markers[visible] = point
-            end
-            point.plotID, point.tooltip = plot.id, plot.tooltip
-            local color = plot.status == "unknown" and E.media.bordercolor or E.media.rgbvaluecolor
-            point.fill:SetVertexColor(unpack(color)); point.fill:SetAlpha(plot.status == "vacant" and .3 or 1)
-            Place(point, card, padding + plot.x * (width - 12), y + plot.y * (chartHeight - 12), 12, 12)
-        end
-    end
-    if visible == 0 then Label(card, "Plot coordinates are not available yet.", padding + 10, y + chartHeight / 2, width - 20) end
-    y = y + chartHeight + 8
-    y = y + Label(card, "Plot positions (0-100%). Hover a marker for its owner and price. Faded markers are unowned.", padding, y, width)
+    y = EH:RenderNeighborhoodMap(card, section, y, width)
+    if card.map.visiblePlots == 0 then y = y + Label(card, "No plot coordinates match this view yet.", padding, y, width) end
+    y = y + Label(card, "Wheel to zoom; drag to pan. Click a plot or vendor for a waypoint. * marks your plot; faded plots are unowned. The arrow shows your position.", padding, y, width)
+    if not card.map.hasArtwork then y = y + Label(card, "Map artwork is unavailable; the grid uses current plot coordinates.", padding, y, width) end
     return y
 end
 
@@ -220,14 +193,18 @@ local function Overview(page, data, width)
     local subtitle = Label(card, data.subtitle or "Housing overview", padding + 64, padding + title + 2, width - 104)
     local height = math.max(76, padding * 2 + title + subtitle)
     Place(card, page.content, 0, 0, width, height)
-    local y, tileWidth = height + gap, (width - gap * 3) / 4
+    local columns = width < LineHeight() * 32 and 2 or 4
+    local y, tileWidth = height + gap, (width - gap * (columns - 1)) / columns
+    local rowHeight = 0
     for index, stat in ipairs(data.stats) do
+        if index > 1 and (index - 1) % columns == 0 then y = y + rowHeight + gap; rowHeight = 0 end
         local tile = Card(page, "stat:" .. index)
         tile.icon:SetTexture(EH:Icon(stat.icon or "general")); tile.icon:SetSize(20, 20)
         local labelHeight = Label(tile, stat.label, padding + 28, padding, tileWidth - padding * 2 - 28, true)
         local valueHeight = Label(tile, stat.value, padding, padding + labelHeight + 6, tileWidth - padding * 2)
         tile:SetHeight(padding * 2 + labelHeight + valueHeight + 6)
-        Place(tile, page.content, (index - 1) * (tileWidth + gap), y, tileWidth, tile:GetHeight())
+        Place(tile, page.content, ((index - 1) % columns) * (tileWidth + gap), y, tileWidth, tile:GetHeight())
+        rowHeight = math.max(rowHeight, tile:GetHeight())
         height = math.max(height, y + tile:GetHeight())
     end
     return height + gap
@@ -255,8 +232,9 @@ function EH:LayoutHousingDashboard(page, data)
     local y, sections = Overview(page, data, width), {}
     for _, section in ipairs(data.sections) do sections[section.title] = section end
     if data.kind == "neighborhood" then
-        y = Pair(page, sections["Neighborhood plots"], sections["Neighborhood endeavor"], y, width)
-        y = Pair(page, sections["Current neighborhood"], sections["Milestone rewards"], y, width)
+        y = Pair(page, sections["Neighborhood plots"], nil, y, width)
+        y = Pair(page, sections["Neighborhood endeavor"], sections["Milestone rewards"], y, width)
+        y = Pair(page, sections["Current neighborhood"], nil, y, width)
         for _, name in ipairs({ "Explore your neighborhood", "Endeavor tasks", "Residents" }) do
             if sections[name] then y = Pair(page, sections[name], nil, y, width) end
         end

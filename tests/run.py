@@ -62,9 +62,12 @@ acquisition = LuaRuntime(unpack_returned_tuples=True)
 load_addon(acquisition)
 acquisition.execute((ROOT / "tests" / "acquisition.lua").read_text(encoding="utf-8"))
 print(f"Vendor routes and acquisition filters: {acquisition.globals().checks} checks passed.")
-for feature in ("pvp", "housing", "dashboard"):
+for feature in ("pvp", "housing", "dashboard", "library", "decor_tags", "neighborhood_map"):
     feature_runtime = LuaRuntime(unpack_returned_tuples=True)
     load_addon(feature_runtime)
+    if feature == "neighborhood_map":
+        fixture = (ROOT / "tests/dashboard.lua").read_text(encoding="utf-8").split("\nEH:Initialize(); SetupDashboardFixture()", 1)[0]
+        feature_runtime.execute(fixture)
     feature_runtime.execute((ROOT / "tests" / f"{feature}.lua").read_text(encoding="utf-8"))
     print(f"{feature.capitalize()} behavior: {feature_runtime.globals().checks} checks passed.")
 

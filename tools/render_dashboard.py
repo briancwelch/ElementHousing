@@ -83,10 +83,30 @@ def render(runtime, view, width, height, font_size):
         asset = ROOT / "Media" / ("Icon.tga" if name in ("housing.tga", "Icon.tga") else "Icons/" + name)
         if asset.is_file():
             widgets.append(f'<image x="{x+icon_x}" y="{y+icon_y}" width="{card.icon.width}" height="{card.icon.height}" href="{png_icon(asset)}"/>')
+        map_x, map_y = (0, 0)
+        if card.map:
+            map_x, map_y = position(card.map.view)
+            widgets.append(f'<clipPath id="neighborhood-map"><rect x="{x+map_x}" y="{y+map_y}" width="{card.map.view.width}" height="{card.map.view.height}"/></clipPath>')
+            rect(x+map_x, y+map_y, card.map.view.width, card.map.view.height, "#202725", border=border)
+            for button in (card.map.minus, card.map.plus, card.map.reset, card.map.plots, card.map.vendorToggle):
+                bx, by = position(button)
+                rect(x+bx, y+by, button.width, button.height, "#292929", button.alpha, border)
+                text(button.text, x+bx, y+by)
+            widgets.append('<g clip-path="url(#neighborhood-map)">')
         for _, grid in card.grid.items():
             if grid.IsShown(grid):
                 gx, gy = position(grid)
-                rect(x+gx, y+gy, grid.width, grid.height, border, .35)
+                rect(x+map_x+gx, y+map_y+gy, grid.width, grid.height, border, .35)
+        if card.map:
+            for _, marker in card.markers.items():
+                if marker.IsShown(marker):
+                    mx, my = position(marker)
+                    rect(x+map_x+mx, y+map_y+my, marker.width, marker.height, color(marker.fill.color), marker.fill.alpha or 1, border)
+                    widgets.append(f'<text x="{x+map_x+mx+marker.width/2}" y="{y+map_y+my+marker.height/2+font_size*.35}" text-anchor="middle" fill="#ffffff">{html.escape(marker.number.GetText(marker.number))}</text>')
+            if card.map.player.IsShown(card.map.player):
+                px, py = position(card.map.player)
+                widgets.append(f'<circle cx="{x+map_x+px+11}" cy="{y+map_y+py+11}" r="8" fill="#ffffff"/>')
+            widgets.append('</g>')
         for _, bar in card.bars.items():
             if bar.IsShown(bar):
                 bx, by = position(bar)
@@ -99,10 +119,6 @@ def render(runtime, view, width, height, font_size):
                 rect(x+rx, y+ry, row.width, row.height, border, row.shade.alpha or .1)
                 for _, label in row.cells.items():
                     text(label, x+rx, y+ry)
-        for _, marker in card.markers.items():
-            if marker.IsShown(marker):
-                mx, my = position(marker)
-                rect(x+mx, y+my, marker.width, marker.height, color(marker.fill.color), marker.fill.alpha or 1, border)
         for _, label in card.labels.items():
             text(label, x, y)
     return f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}"><rect width="100%" height="100%" fill="#151515"/><g font-family="Consolas, monospace" font-size="{font_size}">' + "".join(widgets) + "</g></svg>"

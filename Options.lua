@@ -75,7 +75,7 @@ function EH:BuildOptions()
         open = { type = "execute", name = "Open blueprint library", order = 3, func = function() self:Show("blueprints") end },
     } }
     options.args.waypoints = { type = "group", name = self:IconLabel("teleports", "Vendor waypoints"), order = 40, args = {
-        help = { type = "description", order = 0, name = "Select a vendor item and use Vendor waypoint, or right-click its catalog row. Destinations use Blizzard's acquisition tracking or a nearby location recorded when you opened a merchant that sells the item. If tracking has no destination, visit the vendor and open its shop once. Unknown or loading locations never replace your existing pin." },
+        help = { type = "description", order = 0, name = "Select a vendor item and use Vendor waypoint, or right-click its catalog row. Destinations use Blizzard's tracking, recorded merchant visits, then the bundled known-vendor library. Known library vendors work without visiting first. Unlisted vendors can still be learned by opening their shop. Unknown locations preserve your existing pin." },
         superTrack = self:Setting("superTrack", "Super-track vendor waypoints", "toggle", 1),
         waypointConfirm = self:Setting("waypointConfirm", "Confirm replacing an existing map waypoint", "toggle", 2),
     } }

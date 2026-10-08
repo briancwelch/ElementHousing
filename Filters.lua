@@ -239,6 +239,7 @@ function EH:Matches(entry, tokens)
         elseif not entry.expansionIDs[tonumber(f.expansion)] then return false end
     end
     if not self:MatchesCurrency(entry, f.currency) then return false end
+    if not self:MatchesDecorTags(entry) then return false end
     if f.category and f.category ~= "all" and not entry.categories[tonumber(f.category)] then return false end
     if f.subcategory and f.subcategory ~= "all" and not entry.subcategories[tonumber(f.subcategory)] then return false end
     if f.quality ~= "all" and entry.info.quality ~= tonumber(f.quality) then return false end

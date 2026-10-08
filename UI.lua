@@ -33,16 +33,16 @@ function EH:ChoiceMenu(button, choices, selected, choose)
 end
 
 -- Create one labeled filter with dynamically refreshed native choices.
-function EH:FilterControl(parent, key, label, choices, y)
+function EH:FilterControl(parent, key, label, choices)
     local title = self:Label(parent, label)
-    title:SetPoint("TOPLEFT", 10, -y)
     local button = self:Button(parent, "", 176, function(widget)
         self:ChoiceMenu(widget, choices(), function() return self.filters[key] or "all" end,
             function(value) self:SetFilter(key, value) end)
     end)
-    button:SetPoint("TOPLEFT", 10, -y - 18)
     button.text:ClearAllPoints(); button.text:SetPoint("LEFT", 7, 0); button.text:SetWidth(158)
-    self.filterControls[key] = { button = button, choices = choices }
+    button.text:SetWordWrap(false)
+    self.filterControls[key] = { button = button, choices = choices, title = title }
+    self.filterLayout[#self.filterLayout + 1] = { title = title, button = button }
 end
 
 -- Offer native tag groups as independent multi-select filters.
@@ -63,43 +63,44 @@ end
 
 -- Create a compact scrolling filter sidebar so all controls remain reachable after resizing.
 function EH:CreateFilters(parent)
-    self.filterControls = {}
+    self.filterControls, self.filterLayout = {}, {}
     local scroll = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", 0, -30); scroll:SetPoint("BOTTOMRIGHT", -24, 8)
     local content = CreateFrame("Frame", nil, scroll)
-    content:SetSize(196, 984); scroll:SetScrollChild(content)
-    self:FilterControl(content, "ownership", "Collection", function() return ownership end, 0)
-    self:FilterControl(content, "source", "Acquisition source", function() return self:SourceChoices() end, 54)
+    content:SetSize(196, 1); scroll:SetScrollChild(content)
+    self.filterContent = content
+    self:FilterControl(content, "ownership", "Collection", function() return ownership end)
+    self:FilterControl(content, "source", "Acquisition source", function() return self:SourceChoices() end)
     self:FilterControl(content, "zone", "Zone", function()
         local values = { all = "All zones", current = "Current zone" }
         for key, name in pairs(self.zones or {}) do values[key] = name end
         return values
-    end, 108)
+    end)
     self:FilterControl(content, "profession", "Profession eligibility", function()
         local values = { all = "Any profession", mine = "My professions", none = "No profession-only decor" }
         for id, name in pairs(self.professionNames) do values[tostring(id)] = name end
         return values
-    end, 162)
+    end)
     self:FilterControl(content, "vendor", "Vendor", function()
         local values = { all = "All vendors" }
         for key, name in pairs(self.vendors or {}) do values[key] = name end
         return values
-    end, 216)
+    end)
     self:FilterControl(content, "expansion", "Expansion", function()
         local values = { all = "All expansions", unknown = "Unknown expansion" }
         for key, name in pairs(self.expansions or {}) do values[key] = name end
         return values
-    end, 270)
+    end)
     self:FilterControl(content, "currency", "Currency type", function()
         local values = { all = "All currencies", unknown = "Unknown / no vendor cost" }
         for key, name in pairs(self.currencies or {}) do values[key] = name end
         return values
-    end, 324)
+    end)
     self:FilterControl(content, "category", "Category", function()
         local values = { all = "All categories" }
         for key, name in pairs(self.categories or {}) do values[key] = name end
         return values
-    end, 378)
+    end)
     self:FilterControl(content, "subcategory", "Subcategory", function()
         local values = { all = "All subcategories" }
         for key, name in pairs(self.subcategories or {}) do
@@ -108,25 +109,30 @@ function EH:CreateFilters(parent)
             if not category or not parent or parent == category then values[key] = name end
         end
         return values
-    end, 432)
-    self:FilterControl(content, "placement", "Placement", function() return placement end, 486)
-    self:FilterControl(content, "quality", "Quality", function() return qualities end, 540)
-    self:FilterControl(content, "size", "Size", function() return sizes end, 594)
-    self:FilterControl(content, "sort", "Sort by", function() return sorts end, 648)
+    end)
+    self:FilterControl(content, "placement", "Placement", function() return placement end)
+    self:FilterControl(content, "quality", "Quality", function() return qualities end)
+    self:FilterControl(content, "size", "Size", function() return sizes end)
+    for _, facet in ipairs(self.decorFacets) do
+        local key = facet
+        self:FilterControl(content, key, self.decorFacetLabels[key], function() return self:DecorTagChoices(key) end)
+    end
+    self:FilterControl(content, "sort", "Sort by", function() return sorts end)
     local tags = self:Button(content, "Tags / styles", 176, function(button) self:TagMenu(button) end, "tags")
-    tags:SetPoint("TOPLEFT", 10, -710)
+    self.filterLayout[#self.filterLayout + 1] = { button = tags }
     local customize = self:Button(content, "Customizable: any", 176, function()
         self:SetFilter("customizable", not self.filters.customizable)
     end)
-    customize:SetPoint("TOPLEFT", 10, -742); self.customizableButton = customize
+    self.customizableButton = customize
+    self.filterLayout[#self.filterLayout + 1] = { button = customize }
     local pvpLabel = self:Label(content, "Hide PvP Decorations")
-    pvpLabel:SetPoint("TOPLEFT", 10, -778)
     local pvp = self:Button(content, "Disabled", 176, function()
         self:SetFilter("hidePvP", not self.filters.hidePvP)
     end)
-    pvp:SetPoint("TOPLEFT", 10, -796); self.hidePvPButton = pvp
+    self.hidePvPButton = pvp
+    self.filterLayout[#self.filterLayout + 1] = { title = pvpLabel, button = pvp }
     local reset = self:Button(content, "Reset filters", 176, function() self:ResetFilters() end, "refresh")
-    reset:SetPoint("TOPLEFT", 10, -828)
+    self.filterLayout[#self.filterLayout + 1] = { button = reset }
     local presets = self:Button(content, "Filter presets", 176, function(button)
         MenuUtil.CreateContextMenu(button, function(_, root)
             root:CreateButton("Save current filters...", function() self:TextDialog("Save filter preset", "", function(name) self:SavePreset(name) end) end)
@@ -140,9 +146,28 @@ function EH:CreateFilters(parent)
             end
         end)
     end, "book")
-    presets:SetPoint("TOPLEFT", 10, -860)
-    local help = self:Label(content, 'Search: name:, source:, zone:, vendor:, profession:, id:.\nUse "quoted phrases" or -exclude.')
-    help:SetPoint("TOPLEFT", 10, -900); help:SetWidth(175); help:SetWordWrap(true)
+    self.filterLayout[#self.filterLayout + 1] = { button = presets }
+    local help = self:Label(content, 'Search: name:, source:, zone:, vendor:, profession:, id:, culture:, material:, color:, room:.\nUse "quoted phrases" or -exclude. Decor classifications are community tags.')
+    help:SetWidth(175); help:SetWordWrap(true)
+    self.filterHelp = help
+    self:LayoutFilters()
+end
+
+-- Reflow the scrolling sidebar from ElvUI's font metrics so every selector remains reachable.
+function EH:LayoutFilters()
+    if not self.filterContent then return end
+    local y, height = 0, math.max(24, (ElvUI[1].db.general.fontSize or 13) + 12)
+    for _, control in ipairs(self.filterLayout) do
+        if control.title then
+            control.title:SetWidth(176); control.title:SetWordWrap(true)
+            control.title:ClearAllPoints(); control.title:SetPoint("TOPLEFT", 10, -y)
+            y = y + control.title:GetStringHeight() + 6
+        end
+        control.button:ClearAllPoints(); control.button:SetPoint("TOPLEFT", 10, -y)
+        control.button:SetHeight(height); y = y + height + 12
+    end
+    self.filterHelp:ClearAllPoints(); self.filterHelp:SetPoint("TOPLEFT", 10, -y)
+    self.filterContent:SetHeight(y + self.filterHelp:GetStringHeight() + 16)
 end
 
 -- Update selector captions without rebuilding menus or resetting scroll position.
@@ -156,6 +181,7 @@ function EH:RenderFilters()
     if self.hidePvPButton then
         self.hidePvPButton.text:SetText(self.filters.hidePvP and "Enabled" or "Disabled")
     end
+    self:LayoutFilters()
 end
 
 -- Display a reusable text-entry dialog for names and copyable blueprint codes.
@@ -536,6 +562,20 @@ function EH:RenderDetails()
             local label = entry.waypointVendorName and "Cost at " .. entry.waypointVendorName or "Vendor cost"
             lines[#lines + 1] = label .. ": " .. self:CostText(entry)
         end
+        if #(entry.libraryVendors or {}) > 0 then
+            lines[#lines + 1] = "\nKnown vendor locations (bundled library):"
+            for _, route in ipairs(entry.libraryVendors) do
+                local map = self:Call(C_Map and C_Map.GetMapInfo, route.mapID)
+                lines[#lines + 1] = string.format("%s - %s: %.1f, %.1f", route.vendorName, map and map.name or ("Map " .. route.mapID), route.x * 100, route.y * 100)
+                if route.note then lines[#lines + 1] = route.note end
+            end
+        end
+        local tags = {}
+        for _, facet in ipairs(self.decorFacets) do
+            local text = self:DecorTagText(entry, facet)
+            if text ~= "" then tags[#tags + 1] = self.decorFacetLabels[facet] .. ": " .. text end
+        end
+        if #tags > 0 then lines[#lines + 1] = "\nCommunity decor tags:\n" .. table.concat(tags, "\n") end
         if entry.unknownLocation then lines[#lines + 1] = "Some location names need a native map ID to distinguish them." end
         if entry.instanceName then lines[#lines + 1] = "Instance: " .. entry.instanceName end
         if entry.encounterName then lines[#lines + 1] = "Encounter: " .. entry.encounterName end

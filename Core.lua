@@ -1,6 +1,6 @@
 local addonName, EH = ...
 _G.ElementHousing = EH
-EH.name, EH.version = addonName, "2.0.6"
+EH.name, EH.version = addonName, "2.0.7"
 EH.entries, EH.results, EH.byID = {}, {}, {}
 EH.defaults = {
     schema = 2,
@@ -16,7 +16,8 @@ EH.defaults = {
     },
     filters = { ownership = "all", source = "all", zone = "all", profession = "all",
         search = "", sort = "name", placement = "all", quality = "all", size = "all", tags = {},
-        expansion = "all", currency = "all", hidePvP = false },
+        expansion = "all", currency = "all", hidePvP = false,
+        culture = "all", material = "all", color = "all", room = "all" },
     favorites = {}, blueprints = {}, presets = {}, vendorSources = {}, minimap = { minimapPos = 220 },
 }
 

@@ -1,4 +1,4 @@
-# ElementHousing 2.0.6
+# ElementHousing 2.0.7
 
 A native Midnight 12.1.0 housing catalog, blueprint library, and neighborhood/house information window. **ElvUI is required.** nMediaTag (`ElvUI_mMediaTag`) and WindTools (`ElvUI_WindTools`) are optional. The standard LibStub, CallbackHandler, LibDataBroker, and LibDBIcon launcher libraries are bundled.
 
@@ -61,21 +61,33 @@ Both pages use read-only housing getters and documented asynchronous data reques
 
 ## Vendor waypoints
 
-Waypoints use Blizzard's content-tracking coordinates or a verified merchant visit for the selected decor. A missing preferred-map result no longer stops the lookup: the addon also queries the player's map and known source maps. Verified visits on the current map take priority, choosing the nearest visited seller unless a specific vendor is selected. Visit locations are approximate because they record the player's position while the shop is open.
+Waypoints use Blizzard's content-tracking coordinates or a verified merchant visit for the selected decor, then fall back to **243 bundled known vendor positions**. Known vendors such as Dethelin work before a shop visit when Blizzard supplies the vendor identity but no destination. A missing preferred-map result also queries the player's map and known source maps. Verified visits on the current map take priority, choosing the nearest visited seller unless a specific vendor is selected. Visit locations are approximate because they record the player's position while the shop is open.
 
-If no destination is supplied, open the selling vendor's shop once after `/reload`, then retry **Vendor waypoint**. This also learns purchase currencies without buying anything. For example, open Dethelin's shop before retrying Silvermoon Wooden Chair if its native destination is unavailable.
+The library uses exact catalog vendor names and native map/zone evidence for names shared by different zones. Automatic library destinations respect known faction restrictions. Static coordinates do not establish current inventory, price, reputation, phasing, or endeavor/event availability; unseen prices remain **Unknown**. If a vendor is unlisted or cannot be identified, opening its shop still learns the route and purchase currencies without buying anything. English vendor names are covered by the bundled data; native tracking and merchant observations continue to support localized vendor names.
 
 Pending, unknown, invalid, or non-vendor destinations leave existing map pins intact. Replacing an existing user waypoint requests confirmation by default. Supertracking and replacement confirmation are configurable. Waypoint changes and blueprint operations are blocked during combat.
 
+## Decor browsing and neighborhood maps
+
+The catalog's **Culture**, **Material**, **Color**, and **Room type** selectors combine with collection, source, zone, and other filters. They support saved presets and `culture:`, `material:`, `color:`, and `room:` searches. **Unclassified** finds records without a label for that facet. The bundled classifications cover **1,657 items** and are community visual/keyword suggestions, including image-derived tags; they are separate from Blizzard's requirements and do not classify an item's acquisition or unlocks. Details label them as community tags. [Source revision, license, and refresh instructions](Data/SOURCES.md) accompany the data.
+
+The Neighborhood dashboard draws Blizzard's current map artwork and numbered plot markers. Wheel or use **+ / -** to zoom, drag to pan, and use **Reset** for the full map. Switch between all, unowned, occupied, owned, or unknown plots. An asterisk marks a plot from your known house list, faded markers show unowned plots, and the arrow follows your current native map position. Hover for full details; click a plot to set a supported native waypoint.
+
+Toggle **Vendors** for bundled neighborhood vendor positions. Vendors sharing a location appear together in the hover description; static pins may require the matching endeavor or event to be present. Plot and vendor clicks respect existing-waypoint confirmation and recheck combat and current neighborhood when accepted. Missing map artwork retains a coordinate grid; missing plot/player coordinates are not fabricated. All map controls follow ElvUI appearance settings.
+
 ## Development and verification
 
-Version: **2.0.6**. Interface target: **120100**. Account-wide saved variable: `ElementHousingDB`. Existing compatible root settings/favorites are preserved; the imported suite is not loaded.
+Version: **2.0.7**. Interface target: **120100**. Account-wide saved variable: `ElementHousingDB`. Existing compatible root settings/favorites are preserved; the imported suite is not loaded.
 
 Run `tests/run.py` with Python and `lupa` providing Lua 5.1. The checks compile every Lua file, verify TOC paths, exercise the actual bundled launcher libraries against explicit native frame contracts, test filter/zone/waypoint/blueprint behavior, cover the profession shortcut across character skill combinations, PvP evidence/presets, expansion/currency combinations, merchant observations, and asynchronous housing data/context changes. They validate the options against the installed ElvUI AceConfig registry when available. The integration matrix covers ElvUI alone, each optional plugin, and both plugins together using installed ElvUI font/status helpers, its actual sidebar builder/core-page snapshot, and AceConfig sorting. It verifies native appearance changes on existing controls, legacy override retirement, dependency metadata, and all 17 packaged textures.
 
 These are offline checks. Verify in-game after `/reload`: ElvUI-only startup and bundled icons, plugin position/title/tree, font/outline/scale/texture/color changes through ElvUI, optional WindTools minimap collection and shadows, catalog loading, optional nMediaTag icon rendering, the My professions shortcut, PvP filtering, Neighborhood/House replies while traveling or choosing houses, bulletin-board residents, expansion/currency selectors, merchant observations and vendor waypoints, interactive 3D camera controls, resize/scroll behavior at your UI scale, current-zone source completeness, and live blueprint collection/import/export replies.
 
 Dashboard checks additionally cover graph values, pooled controls, expandable IDs, marker tooltips, unknown/over-budget states, and layouts at three widths and three ElvUI font sizes. `tools/render_dashboard.py --output-dir <directory>` exports SVG layout previews from the actual controls using illustrative data and approximate font metrics; these previews are separate from in-game screenshots.
+
+Bundled-data checks cover every coordinate and tag, ambiguity/faction handling, fresh-account routing and native priority, unknown prices, combined selectors/searches/presets, and font-aware sidebar reachability. Native map contracts cover complete/partial tile geometry, aspect ratio, zoom limits, pan bounds, pooled pins, plot filters, live player movement, missing/restricted data, vendor grouping, and acceptance after combat/travel. Verify actual map textures, zoom/pan, pin legibility, both neighborhood layouts, vendor availability, and decor classifications in-game after `/reload`.
+
+Map API reference: [Blizzard-generated map artwork and waypoint definitions](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/MapDocumentation.lua).
 
 Appearance references: [ElvUI templates and font registration](https://github.com/tukui-org/ElvUI/blob/main/ElvUI/Game/Shared/General/Toolkit.lua), [native media update registries](https://github.com/tukui-org/ElvUI/blob/main/ElvUI/Game/Shared/General/Core.lua), and [UI scaling](https://github.com/tukui-org/ElvUI/blob/main/ElvUI/Game/Shared/General/PixelPerfect.lua).
 

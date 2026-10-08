@@ -259,6 +259,7 @@ function EH:NeighborhoodData()
     end
     table.sort(plots, function(a, b) return a.plotID < b.plotID end)
     local plotCard = Section(sections, "Neighborhood plots", "plots", "housing")
+    plotCard.mapID, plotCard.neighborhoodGUID = Number(mapID) and mapID or nil, guid
     plotCard.plots, plotCard.rows = {}, {}
     plotCard.columns = { "Plot", "Owner", "Status", "Price", "Coordinates" }
     plotCard.counts = { occupied = occupied, vacant = vacant, unknown = unknown, total = #plots }
@@ -272,6 +273,9 @@ function EH:NeighborhoodData()
         for _, plot in ipairs(plots) do
             local point = { id = plot.plotID, owner = Text(plot.ownerName),
                 status = not Number(plot.ownerType) and "unknown" or (plot.ownerType == vacantType and "vacant" or "occupied") }
+            for _, house in ipairs(self.housing.houses) do
+                if house.neighborhoodGUID == guid and house.plotID == plot.plotID then point.owned = true; break end
+            end
             local detail = Text(plot.ownerName) .. " (" .. EnumName("HousingPlotOwnerType", plot.ownerType) .. ")"
             if Number(plot.plotCost) then detail = detail .. " - " .. Text(Money(plot.plotCost)) end
             local position = plot.mapPosition
@@ -283,6 +287,7 @@ function EH:NeighborhoodData()
                 end
             end
             point.tooltip = "Plot " .. plot.plotID .. ": " .. detail
+            if point.owned then point.tooltip = point.tooltip .. "\nYour plot" end
             plotCard.plots[#plotCard.plots + 1] = point
             plotCard.rows[#plotCard.rows + 1] = { cells = { Text(plot.plotID), Text(plot.ownerName),
                 point.status == "vacant" and "Unowned" or EnumName("HousingPlotOwnerType", plot.ownerType), Text(Money(plot.plotCost)),

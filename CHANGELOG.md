@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.7 - 2026-10-08
+
+- Bundle 243 sourced housing vendor positions so known catalog vendors can receive waypoints before a merchant visit. Keep native tracking and recorded merchant routes first, respect vendor selection and known faction restrictions, and require map/zone evidence for ambiguous names. Coordinates never infer inventories, costs, or unlock requirements.
+- Add culture, material, color, and room type browsing using community classifications for 1,657 decorations. Combine the four selectors with existing filters, field searches, and saved presets; offer explicit Unclassified choices. Reflow the scrolling sidebar and summary tiles from ElvUI's current font metrics.
+- Expand the Neighborhood tab with a full-width native map, numbered plot markers, owned-plot highlights, a moving player marker, wheel/button zoom, drag panning, and plot ownership views. Load Blizzard's current map tiles without stretching or substituting static world coordinates; retain a coordinate grid when artwork is unavailable.
+- Add an optional known-vendor map layer, combine vendors sharing a coordinate into one hover description, and retain conditional endeavor/event notes. Plot and vendor clicks use supported native waypoints, existing replacement confirmation, and combat/neighborhood revalidation.
+- Include the upstream MIT license, pinned source revision, original checksums, classification limitations, and a deterministic importer that never executes downloaded Lua. All data is bundled; no external addon or in-game network request is required.
+- Extend offline checks for every bundled coordinate and classification, fresh-install vendor routing, ambiguity/faction/unknown-price behavior, combined facet browsing, native map edge-tile cropping, zoom/pan/marker reuse, moving player positions, and delayed waypoint confirmations. Live map rendering and vendor availability still require in-game verification.
+
 ## 2.0.6 - 2026-10-08
 
 - Redesign Neighborhood and House as native ElvUI dashboards with branded summary headers, icon tiles, grouped detail cards, and responsive layouts instead of one long text list.

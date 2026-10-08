@@ -128,9 +128,10 @@ function EH:ReadSources(entry)
         end
     end
     self:ReadObservedSources(entry)
-    entry.isPvP = self:IsPvPDecor(entry)
     if entry.vendorName then entry.vendorNames[entry.vendorName] = true end
     if entry.zoneName then entry.zoneNames[entry.zoneName] = true end
+    self:ReadLibrarySources(entry)
+    entry.isPvP = self:IsPvPDecor(entry)
     for name in pairs(entry.zoneNames) do
         local zoneIDs = self.mapNames and self.mapNames[name:lower()]
         local identified = false
@@ -178,6 +179,11 @@ function EH:MakeEntry(info)
     for _, id in ipairs(info.categoryIDs or {}) do entry.categories[id] = true end
     for _, id in ipairs(info.subcategoryIDs or {}) do entry.subcategories[id] = true end
     self:ReadSources(entry)
+    self:ReadDecorTags(entry)
+    for _, facet in ipairs(self.decorFacets) do
+        entry.searchFields[facet] = self:DecorTagText(entry, facet):lower()
+        entry.searchText = entry.searchText .. " " .. entry.searchFields[facet]
+    end
     self:ReadExpansion(entry)
     return entry
 end
@@ -329,12 +335,12 @@ function EH:VendorDestination(entry)
     local observed = self:ObservedVendorDestination(entry, true)
     if observed then return observed end
     if not tracking or not tracking.GetNextWaypointForTrackable then
-        return self:ObservedVendorDestination(entry), "Native vendor waypoints are unavailable on this client."
+        return self:ObservedVendorDestination(entry) or self:LibraryVendorDestination(entry), "Native vendor waypoints are unavailable on this client."
     end
     local typeID = Enum.ContentTrackingType.Decor
     local result, mapID = self:Call(tracking.GetBestMapForTrackable, typeID, entry.info.recordID, true)
     local candidates, seen, pending, invalid = {}, {}, result == Enum.ContentTrackingResult.DataPending, false
-    -- Map IDs are query candidates; only native vendor coordinates can become a destination.
+    -- Map IDs are query candidates; only validated vendor coordinates can become a destination.
     local function addMap(id)
         if self:Readable(id) and type(id) == "number" and id > 0 and id < math.huge and id % 1 == 0 and not seen[id] then
             candidates[#candidates + 1], seen[id] = id, true
@@ -363,9 +369,11 @@ function EH:VendorDestination(entry)
     end
     observed = self:ObservedVendorDestination(entry)
     if observed then return observed end
+    local library = self:LibraryVendorDestination(entry)
+    if library then return library end
     if pending then return nil, "Vendor location is loading. Try again shortly." end
     if invalid then return nil, "This vendor location cannot accept a user waypoint." end
-    return nil, "No vendor destination is available. Open the vendor's shop once to learn its location."
+    return nil, "No native or bundled vendor destination is available. Open the vendor's shop once to learn its location."
 end
 
 -- Place a user waypoint only after rechecking the destination and combat state.
@@ -375,6 +383,7 @@ function EH:PlaceVendorWaypoint(entry)
     C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(location.mapID, location.x, location.y))
     if self.db.settings.superTrack and C_SuperTrack then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
     self:Notify("Vendor waypoint set: " .. (location.vendorName or entry.waypointVendorName or entry.name))
+    if location.source == "library" and location.note then self:Notify("Known vendor note: " .. location.note) end
     return true
 end
 

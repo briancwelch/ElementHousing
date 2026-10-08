@@ -154,6 +154,9 @@ methods.GetStringHeight = function(self)
 end
 methods.GetVerticalScroll = function(self) return self.verticalScroll or 0 end
 methods.SetVerticalScroll = function(self, value) self.verticalScroll = value end
+-- Keep the native map viewport's horizontal pan separate from the dashboard's vertical scroll.
+methods.GetHorizontalScroll = function(self) return self.horizontalScroll or 0 end
+methods.SetHorizontalScroll = function(self, value) self.horizontalScroll = value end
 methods.ClearLines = function(self) self.tooltipLines = {} end
 methods.SetMinMaxValues = function(self, min, max) self.min, self.max = min, max end
 methods.SetValue = function(self, value) self.value = value; if self.scripts.OnValueChanged then self.scripts.OnValueChanged(self, value) end end
