@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.8 - 2026-10-08
+
+- Add a Collections workspace with 42 community collection/theme checklists, native ownership checkmarks and progress, search, missing-only views, catalog inspection, and an action to plan known missing craftable decorations. Keep unavailable catalog items separate from missing decor.
+- Bundle 325 housing recipe spell IDs across nine crafting professions, with output items and per-craft reagent estimates from the pinned MIT source. Add profession/search/planned filters, current-character learned status, native recipe opening, and an account-wide crafting plan with bounded craft quantities.
+- Prefer current Blizzard recipe schematics, expose permitted reagent/quality choices, omit optional slots, and aggregate shared materials before subtracting inventory. Offer bag-only or personal/reagent/warband bank scopes. Preserve unknown counts and mark restricted/variable native requirements incomplete.
+- Support optional Auctionator public v1 cached prices and explicit quantity/quality-aware exports to a dedicated ElementHousing Reagents shopping list. Keep unpriced and currency requirements visible; wait for metadata/inventory and block incomplete exports. No automatic purchases or crafting.
+- Support optional Kaliel's Tracker through Blizzard's native recipe tracking, with manual per-recipe track/untrack actions and Blizzard tracker compatibility when Kaliel is absent. Native tracker quantities remain per recipe; themed checklists and multi-craft plans stay in ElementHousing.
+- Keep ElvUI as the sole requirement. Inherit its fonts, UI scale, colors, templates, and status bar textures; wrap main tabs for larger fonts, scroll compact workspaces, pool visible checklist rows, and coalesce inventory/profession/item-data updates.
+- Expand source attribution, checksums, and the non-executing literal-table importer. Add offline checks for set/recipe identities, all profession roots, ownership states, material aggregation, quality selection, optional integration combinations, restricted/unknown data, combat guards, native API signatures, and responsive layouts. In-game rendering and actual tracker/auction-house behavior still require client verification.
+
 ## 2.0.7 - 2026-10-08
 
 - Bundle 243 sourced housing vendor positions so known catalog vendors can receive waypoints before a merchant visit. Keep native tracking and recorded merchant routes first, respect vendor selection and known faction restrictions, and require map/zone evidence for ambiguous names. Coordinates never infer inventories, costs, or unlock requirements.

@@ -100,3 +100,13 @@ E:UpdateFontTemplates()
 Check(EH.textDialog.edit.state_SetFont[1] == E.media.normFont and EH.textDialog.edit.state_SetFont[2] == 20, "Later-created dialogs join the same native font registry")
 EH:OpenOptions()
 Check(optionsPath == "ElementHousing" and EH.configFrame == nil, "Every supported client uses ElvUI configuration natively")
+EH:SetView("collections")
+Check(E.statusBars[EH.projects.progress] and E.statusBars[EH.projects.scrollbar:GetThumbTexture()], "Collection meters and list thumbs join the actual native texture registry")
+Check(EH.projects.progress.state_SetStatusBarTexture[1] == E.media.normTex and EH.projects.progress.state_SetStatusBarColor[1] == .9,
+    "Collection progress inherits changed native status textures and accent colors")
+for _, row in ipairs(EH.projects.rows) do
+    Check(row.name.state_SetFont[1] == E.media.normFont and row.name.state_SetFont[2] == 20,
+        "Lazily created checklist rows inherit ElvUI's changed fonts")
+end
+Check(EH.projects.search:GetEffectiveScale() == .75 and EH.projects.panel:GetEffectiveScale() == .75,
+    "Collection inputs and scrolling content inherit native UI scale once")

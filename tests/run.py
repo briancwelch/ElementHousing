@@ -2,6 +2,7 @@
 from pathlib import Path
 import re
 import struct
+import sys
 from lupa.lua51 import LuaRuntime
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,7 +63,7 @@ acquisition = LuaRuntime(unpack_returned_tuples=True)
 load_addon(acquisition)
 acquisition.execute((ROOT / "tests" / "acquisition.lua").read_text(encoding="utf-8"))
 print(f"Vendor routes and acquisition filters: {acquisition.globals().checks} checks passed.")
-for feature in ("pvp", "housing", "dashboard", "library", "decor_tags", "neighborhood_map"):
+for feature in ("pvp", "housing", "dashboard", "library", "decor_tags", "neighborhood_map", "projects"):
     feature_runtime = LuaRuntime(unpack_returned_tuples=True)
     load_addon(feature_runtime)
     if feature == "neighborhood_map":
@@ -164,7 +165,7 @@ else:
 # Validate dependency metadata and the actual packaged TGA assets without another runtime dependency.
 toc = (ROOT / "ElementHousing.toc").read_text(encoding="utf-8")
 assert "## Dependencies: ElvUI\n" in toc
-assert "## OptionalDeps: ElvUI_WindTools, ElvUI_mMediaTag\n" in toc
+assert "## OptionalDeps: ElvUI_WindTools, ElvUI_mMediaTag, Auctionator, !KalielsTracker\n" in toc
 assert "## IconTexture: Interface\\AddOns\\ElementHousing\\Media\\Icon.tga" in toc
 media = (ROOT / "Media.lua").read_text(encoding="utf-8")
 names = re.findall(r"\b(\w+) = true", media.split("EH.brandIcon", 1)[0])
@@ -183,5 +184,19 @@ if nmedia_assets.is_dir():
     for name in ["housing"] + names:
         assert (nmedia_assets / f"{name}.tga").is_file(), f"Installed optional glyph is missing: {name}"
 print(f"Required/optional dependency metadata and {len(assets)} packaged textures: PASS")
+
+# A data import cannot evaluate downloaded expressions, function calls, or duplicate keys.
+sys.path.insert(0, str(ROOT / "tools"))
+from lua_data import read_table
+assert read_table('Sample = { [12] = {name="A", quantity=3}, "literal" }', "Sample")[12]["quantity"] == 3
+for unsafe in ('Sample = { value = os.execute("anything") }', 'Sample = { value = 1 + 2 }',
+               'Sample = { [1] = "first", [1] = "second" }'):
+    try:
+        read_table(unsafe, "Sample")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Importer accepted executable or ambiguous data")
+print("Literal-only housing-data import: PASS")
 
 print("Offline validation only. In-game rendering, actual source availability, and blueprint server replies require client verification.")

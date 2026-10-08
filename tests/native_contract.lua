@@ -148,9 +148,23 @@ methods.GetStringHeight = function(self)
     local width = self.width or 800
     local height = 0
     for line in ((self.textValue or "") .. "\n"):gmatch("(.-)\n") do
-        height = height + math.max(1, math.ceil(#line * size * .58 / math.max(1, width))) * (size + 2)
+        local capacity, lines, used = math.max(1, math.floor(width / (size * .58))), 1, 0
+        if not self.state_SetWordWrap or self.state_SetWordWrap[1] then
+            for word in line:gmatch("%S+") do
+                local length = #word
+                if used > 0 and used + 1 + length > capacity then lines, used = lines + 1, 0 end
+                if length > capacity then
+                    lines = lines + math.floor((length - 1) / capacity); used = (length - 1) % capacity + 1
+                else used = used + (used > 0 and 1 or 0) + length end
+            end
+        end
+        height = height + lines * (size + 2)
     end
     return height
+end
+-- Expose native measured caption width for responsive navigation; actual client metrics require in-game QA.
+methods.GetStringWidth = function(self)
+    return #(EH and EH:Plain(self.textValue or "") or self.textValue or "") * (self.state_SetFont and self.state_SetFont[2] or 13) * .58
 end
 methods.GetVerticalScroll = function(self) return self.verticalScroll or 0 end
 methods.SetVerticalScroll = function(self, value) self.verticalScroll = value end

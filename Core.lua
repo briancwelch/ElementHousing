@@ -1,6 +1,6 @@
 local addonName, EH = ...
 _G.ElementHousing = EH
-EH.name, EH.version = addonName, "2.0.7"
+EH.name, EH.version = addonName, "2.0.8"
 EH.entries, EH.results, EH.byID = {}, {}, {}
 EH.defaults = {
     schema = 2,
@@ -18,7 +18,7 @@ EH.defaults = {
         search = "", sort = "name", placement = "all", quality = "all", size = "all", tags = {},
         expansion = "all", currency = "all", hidePvP = false,
         culture = "all", material = "all", color = "all", room = "all" },
-    favorites = {}, blueprints = {}, presets = {}, vendorSources = {}, minimap = { minimapPos = 220 },
+    favorites = {}, blueprints = {}, presets = {}, vendorSources = {}, craftPlan = {}, reagentChoices = {}, minimap = { minimapPos = 220 },
 }
 
 -- Reject restricted API values before inspecting or persisting them.
@@ -111,7 +111,7 @@ function EH:RegisterLauncher()
         -- Explain both launcher actions using the collector's supplied tooltip.
         OnTooltipShow = function(tooltip)
             tooltip:AddLine(self:Brand() .. " " .. self.version)
-            tooltip:AddLine("Left click: catalog, blueprints, and housing information", 1, 1, 1)
+            tooltip:AddLine("Left click: catalog, collections, crafting, and housing information", 1, 1, 1)
             tooltip:AddLine("Right click: settings", 1, 1, 1)
         end,
     })
@@ -132,6 +132,7 @@ function EH:Initialize()
     self.db.schema = 2
     if not self.db.settings.rememberFilters then self.db.filters = self:Copy(self.defaults.filters) end
     self.filters = self.db.filters
+    self:NormalizeCraftPlan()
     self:UpdateProfessions()
     self:RegisterMedia()
     self:RegisterOptions()
@@ -143,6 +144,9 @@ function EH:Initialize()
         if text == "config" or text == "settings" then self:OpenOptions()
         elseif text == "blueprints" then self:Show("blueprints")
         elseif text == "neighborhood" or text == "house" then self:Show(text)
+        elseif text == "collections" then self:Show("collections")
+        elseif text == "recipes" or text == "reagents" then
+            if self:Show("collections") then self:SetProjectMode(text) end
         elseif text == "missing" then self:SetFilter("ownership", "missing"); self:Show("catalog")
         elseif text == "zone" then
             self:SetFilter("ownership", "missing"); self:SetFilter("zone", "current"); self:Show("catalog")
@@ -170,10 +174,15 @@ EH.events:SetScript("OnEvent", function(_, event, ...)
         local itemID, success = ...
         if EH:Readable(itemID) and EH:Readable(success) and EH.requestedItems
             and EH.requestedItems[itemID] and success then EH:ScheduleRefresh() end
+        if EH:Readable(itemID) and EH:Readable(success) and EH.projectItems and EH.projectItems[itemID] and success then EH:ScheduleProjectRefresh() end
         return
     end
     if event:find("HOUSING_BLUEPRINT", 1, true) then EH:BlueprintEvent(event, ...); return end
     if event == "SKILL_LINES_CHANGED" or event == "TRADE_SKILL_LIST_UPDATE" then EH:UpdateProfessions() end
+    if event == "BAG_UPDATE_DELAYED" or event == "BANKFRAME_OPENED" or event == "BANKFRAME_CLOSED"
+        or event == "TRACKED_RECIPE_UPDATE" or event == "NEW_RECIPE_LEARNED" or event == "TRADE_SKILL_DATA_SOURCE_CHANGED"
+        or event == "CURRENCY_DISPLAY_UPDATE" then EH:ScheduleProjectRefresh(); return end
+    if event == "SKILL_LINES_CHANGED" or event == "TRADE_SKILL_LIST_UPDATE" then EH:ScheduleProjectRefresh() end
     if event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" then
         EH:RefreshHousingInfo()
         if EH.db.settings.autoZone and EH.filters.zone == "current" then EH:ApplyFilters(); EH:ScheduleRefresh() end
@@ -189,6 +198,8 @@ end)
 for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_REGEN_ENABLED", "UI_SCALE_CHANGED", "DISPLAY_SIZE_CHANGED", "SKILL_LINES_CHANGED",
     "TRADE_SKILL_LIST_UPDATE", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED",
     "MERCHANT_SHOW", "MERCHANT_UPDATE", "MERCHANT_CLOSED", "GET_ITEM_INFO_RECEIVED",
+    "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "CURRENCY_DISPLAY_UPDATE",
+    "TRACKED_RECIPE_UPDATE", "NEW_RECIPE_LEARNED", "TRADE_SKILL_DATA_SOURCE_CHANGED",
     "RECEIVED_ACHIEVEMENT_LIST", "ACHIEVEMENT_EARNED",
     "HOUSING_STORAGE_UPDATED", "HOUSING_STORAGE_ENTRY_UPDATED", "TRACKABLE_INFO_UPDATE",
     "TRACKING_TARGET_INFO_UPDATE", "CONTENT_TRACKING_UPDATE",

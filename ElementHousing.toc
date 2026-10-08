@@ -1,11 +1,11 @@
 ## Interface: 120100
 ## Title: ElementHousing
-## Notes: An ElvUI housing catalog, acquisition browser, blueprint library, and neighborhood/house information window.
+## Notes: An ElvUI housing catalog, themed collections and crafting planner, blueprint library, and neighborhood/house information window.
 ## Author: ElementHousing
-## Version: 2.0.7
+## Version: 2.0.8
 ## SavedVariables: ElementHousingDB
 ## Dependencies: ElvUI
-## OptionalDeps: ElvUI_WindTools, ElvUI_mMediaTag
+## OptionalDeps: ElvUI_WindTools, ElvUI_mMediaTag, Auctionator, !KalielsTracker
 ## IconTexture: Interface\AddOns\ElementHousing\Media\Icon.tga
 
 Libs\LibStub.lua
@@ -16,14 +16,19 @@ Core.lua
 Media.lua
 Data\Vendors.lua
 Data\DecorTags.lua
+Data\Collections.lua
+Data\Recipes.lua
 Filters.lua
 Acquisition.lua
 VendorLibrary.lua
 DecorTags.lua
 Catalog.lua
+Crafting.lua
+Collections.lua
 Blueprints.lua
 Housing.lua
 NeighborhoodMap.lua
 HousingUI.lua
+CollectionsUI.lua
 UI.lua
 Options.lua

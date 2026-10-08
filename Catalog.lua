@@ -233,7 +233,7 @@ function EH:ReadResults()
         else
             self.entries, self.byID, self.loading, self.catalogStatus = entries, byID, false, nil
             if self.selected then self.selected = byID[self.selected.info.recordID] end
-            self:BuildFacets(); self:ApplyFilters(); self:RenderDetails()
+            self:IndexCollections(); self:BuildFacets(); self:ApplyFilters(); self:RenderDetails(); self:RenderProjects()
             if self.dirty then self:ScheduleRefresh() end
         end
     end

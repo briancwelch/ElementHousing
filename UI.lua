@@ -266,6 +266,8 @@ function EH:CreateWindow()
     self.neighborhoodTab:SetPoint("LEFT", self.blueprintTab, "RIGHT", 6, 0)
     self.houseTab = self:Button(frame, "House", 110, function() self:SetView("house") end, "housing")
     self.houseTab:SetPoint("LEFT", self.neighborhoodTab, "RIGHT", 6, 0)
+    self.collectionsTab = self:Button(frame, "Collections", 140, function() self:SetView("collections") end, "collection")
+    self.collectionsTab:SetPoint("LEFT", self.houseTab, "RIGHT", 6, 0)
     self.zoneShortcut = self:Button(frame, "Missing here", 140, function()
         self.filters.ownership, self.filters.zone = "missing", "current"
         self:SetView("catalog"); self.scrollOffset = 0; self:ApplyFilters()
@@ -321,6 +323,7 @@ function EH:CreateWindow()
     self:CreateDetails()
     self:CreateBlueprintPanel()
     self:CreateHousingPanels()
+    self:CreateProjectsPanel()
     self.statusLabel = self:Label(frame, "")
     self.statusLabel:SetPoint("BOTTOMLEFT", 14, 13); self.statusLabel:SetPoint("BOTTOMRIGHT", -38, 13)
     self.resizeGrip = self:Button(frame, "/", 22, nil)
@@ -337,6 +340,7 @@ function EH:CreateWindow()
         self.generation = (self.generation or 0) + 1
         self.dirty, self.loading = true, false
         self.searchBox:ClearFocus()
+        if self.projects then self.projects.search:ClearFocus() end
         if self.textDialog then self.textDialog:Hide() end
         self:ClearModel()
     end)
@@ -347,6 +351,7 @@ end
 -- Reflow list/details widths and visible row count within the user's chosen dimensions.
 function EH:LayoutWindow()
     if not self.details then return end
+    self:LayoutNavigation()
     local width = self:Clamp(self.db.settings.detailsWidth, 240, 460, 330)
     width = math.min(width, math.max(240, self.frame:GetWidth() * 0.32))
     self.details:SetWidth(width)
@@ -358,7 +363,31 @@ function EH:LayoutWindow()
     if self.previewArea then self.previewArea:SetHeight(modelHeight) end
     if self.blueprintPanel then self:LayoutBlueprints() end
     if self.infoPages then self:RenderHousingInfo() end
+    if self.projects then self:RenderProjects() end
     self:RenderList()
+end
+
+-- Wrap navigation when ElvUI's font grows, and move every workspace below the last tab row.
+function EH:LayoutNavigation()
+    local font = math.max(13, ElvUI[1].db.general.fontSize or 13)
+    local height, available = font + 14, self.frame:GetWidth() - 24
+    local x, y = 12, math.max(44, font + 30)
+    for _, tab in ipairs({ self.catalogTab, self.blueprintTab, self.neighborhoodTab, self.houseTab, self.collectionsTab }) do
+        local width = math.min(available, tab.text:GetStringWidth() + 46)
+        if x > 12 and x + width > available + 12 then x, y = 12, y + height + 6 end
+        tab:ClearAllPoints(); tab:SetPoint("TOPLEFT", x, -y); tab:SetSize(width, height)
+        x = x + width + 6
+    end
+    local top = y + height + 12
+    self.zoneShortcut:ClearAllPoints(); self.zoneShortcut:SetPoint("TOPLEFT", 12, -top)
+    self.zoneShortcut:SetHeight(height); self.professionShortcut:SetHeight(height)
+    self.catalogPanel:ClearAllPoints(); self.catalogPanel:SetPoint("TOPLEFT", 12, -(top + height + 12)); self.catalogPanel:SetPoint("BOTTOMRIGHT", -12, 38)
+    local panels = { self.blueprintPanel }
+    if self.projects then panels[#panels + 1] = self.projects.root end
+    for _, page in pairs(self.infoPages or {}) do panels[#panels + 1] = page.panel end
+    for _, panel in ipairs(panels) do
+        panel:ClearAllPoints(); panel:SetPoint("TOPLEFT", 12, -top); panel:SetPoint("BOTTOMRIGHT", -12, 38)
+    end
 end
 
 -- Create one reusable catalog row with source text, counts, and native item thumbnails.
@@ -470,7 +499,16 @@ function EH:CreateDetails()
     end)
     self.favoriteButton = self:Button(panel, "Favorite", 125, function() self:Favorite(self.selected) end, "heart")
     self.favoriteButton:SetPoint("BOTTOMLEFT", 10, 43)
-    self.waypointButton = self:Button(panel, "Vendor waypoint", 180, function() self:VendorWaypoint(self.selected) end, "teleports")
+    self.waypointButton = self:Button(panel, "Vendor waypoint", 180, function()
+        local entry = self.selected
+        local recipeID = entry and self.recipesByItem and self.recipesByItem[entry.info.itemID]
+        if entry and entry.sources.vendor then self:VendorWaypoint(entry)
+        elseif recipeID then
+            self:SetView("collections"); self:SetProjectMode("recipes")
+            self.projects.profession, self.projects.missingOnly = "all", false
+            self.projects.search:SetText(entry.name); self:RenderProjects()
+        end
+    end, "teleports")
     self.waypointButton:SetPoint("BOTTOMLEFT", 10, 10); self.waypointButton:SetPoint("BOTTOMRIGHT", -10, 10)
     self.modelReset = self:Button(panel, "Reset view", 110, function() self.modelKey = nil; self:RenderModel() end, "refresh")
     self.modelReset:SetPoint("BOTTOMRIGHT", -10, 43)
@@ -544,7 +582,10 @@ function EH:RenderDetails()
     if not self.detailName then return end
     local entry = self.selected
     self.detailName:SetText(entry and entry.name or "Select decor")
-    self.favoriteButton:SetEnabled(entry ~= nil); self.waypointButton:SetEnabled(entry and entry.sources.vendor or false)
+    local recipeID = entry and self.recipesByItem and self.recipesByItem[entry.info.itemID]
+    self.favoriteButton:SetEnabled(entry ~= nil); self.waypointButton:SetEnabled(entry and entry.sources.vendor or recipeID ~= nil)
+    self.waypointButton.text:SetText(entry and entry.sources.vendor and "Vendor waypoint" or recipeID and "Crafting recipe" or "Vendor waypoint")
+    self.waypointButton.icon:SetTexture(self:Icon(entry and entry.sources.vendor and "teleports" or recipeID and "professions" or "teleports"))
     self.favoriteButton.text:SetText(entry and self.db.favorites[entry.key] and "Unfavorite" or "Favorite")
     local lines = {}
     if entry then
@@ -592,19 +633,21 @@ end
 function EH:RenderTabs()
     local color = ElvUI[1].media.rgbvaluecolor
     for key, tab in pairs({ catalog = self.catalogTab, blueprints = self.blueprintTab,
-        neighborhood = self.neighborhoodTab, house = self.houseTab }) do
+        neighborhood = self.neighborhoodTab, house = self.houseTab, collections = self.collectionsTab }) do
         if key == self.view then tab.text:SetTextColor(color[1], color[2], color[3]) else tab.text:SetTextColor(1, 1, 1) end
     end
 end
 
 -- Switch workspaces without rebuilding controls or carrying a model into information pages.
 function EH:SetView(view)
-    self.view = (view == "blueprints" or view == "neighborhood" or view == "house") and view or "catalog"
+    self.view = (view == "blueprints" or view == "neighborhood" or view == "house" or view == "collections") and view or "catalog"
     self.catalogPanel:SetShown(self.view == "catalog"); self.blueprintPanel:SetShown(self.view == "blueprints")
+    self.projects.root:SetShown(self.view == "collections")
     self.zoneShortcut:SetShown(self.view == "catalog"); self.professionShortcut:SetShown(self.view == "catalog")
     self:RenderTabs()
     for key, page in pairs(self.infoPages or {}) do page.panel:SetShown(key == self.view) end
     if self.view == "catalog" then self:RenderDetails() else self:ClearModel() end
+    if self.view == "collections" then self:RenderProjects() end
     if self.frame:IsShown() then
         if self.view == "blueprints" then self:RefreshBlueprints()
         elseif self.view == "neighborhood" or self.view == "house" then self:RefreshHousingInfo()
@@ -641,6 +684,7 @@ function EH:RenderStatus()
     if not self.statusLabel then return end
     local infoView = self.view == "neighborhood" or self.view == "house"
     local message = self.notice or (infoView and "Housing information updates as you travel and receive new data.")
+        or (self.view == "collections" and "Collections and crafting plans use Blizzard ownership and this character's inventory.")
         or (self.view == "blueprints" and self.blueprintStatus) or self.catalogStatus
     if not message then
         local total, owned = #self.entries, self.ownedCount or 0

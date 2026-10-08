@@ -90,7 +90,7 @@ function EH:UpdateMedia()
     if self.scrollbar then self.scrollbar:GetThumbTexture():SetVertexColor(color[1], color[2], color[3]) end
     if self.blueprintProgress then self.blueprintProgress:SetStatusBarColor(color[1], color[2], color[3]) end
     if self.listBody then self:RenderList() end
-    if self.frame then self:RenderTabs(); self:RenderHousingInfo() end
+    if self.frame then self:RenderTabs(); self:RenderHousingInfo(); self:RenderProjects() end
 end
 
 -- Let ElvUI's native registries update fonts, templates, and status bars as settings change.
